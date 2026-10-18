@@ -97,6 +97,8 @@
       this.audioCalibratorBusy = false;
       this.assMutedTracks = null;
       this.assTrackListener = null;
+      this.hiddenSiteCaptions = [];
+      this.captionPickHandler = null;
 
       this.settingsStore = new SettingsStore();
       this.settings = SettingsModel.createDefaultSettings();
@@ -192,6 +194,12 @@
         },
         onFontStep: (delta) => {
           this.stepFontSize(delta);
+        },
+        onHideSiteCaption: () => {
+          this.pickSiteCaption();
+        },
+        onRestoreSiteCaption: () => {
+          this.restoreSiteCaptions();
         },
         onPositionPreview: (position) => {
           this.previewPosition(position);
@@ -1418,6 +1426,71 @@
       );
     }
 
+    pickSiteCaption() {
+      if (this.captionPickHandler) {
+        document.removeEventListener('click', this.captionPickHandler, true);
+        this.captionPickHandler = null;
+      }
+      this.view.setSiteCaptionStatus(
+        '请点击画面上多余的那层字幕（不是在扩展面板里）。',
+        'warn'
+      );
+      this.captionPickHandler = (event) => {
+        if (
+          this.view.host &&
+          event.composedPath &&
+          event.composedPath().includes(this.view.host)
+        ) {
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        const path = event.composedPath ? event.composedPath() : [];
+        let node = path.find(function (item) {
+          return item instanceof Element;
+        }) || null;
+        let target = node;
+        for (let index = 0; node && index < 7; index += 1, node = node.parentElement) {
+          const style = getComputedStyle(node);
+          if (style.position === 'absolute' || style.position === 'fixed') {
+            target = node;
+            break;
+          }
+        }
+        document.removeEventListener('click', this.captionPickHandler, true);
+        this.captionPickHandler = null;
+        if (!target || target === document.body || target === document.documentElement) {
+          this.view.setSiteCaptionStatus('没有选中可隐藏的字幕层。', 'warn');
+          return;
+        }
+        this.hiddenSiteCaptions.push({
+          element: target,
+          display: target.style.display
+        });
+        target.style.display = 'none';
+        this.view.setSiteCaptionStatus('已隐藏选中的站内字幕层；可点「恢复」。', 'ok');
+      };
+      document.addEventListener('click', this.captionPickHandler, true);
+    }
+
+    restoreSiteCaptions(options) {
+      if (this.captionPickHandler) {
+        document.removeEventListener('click', this.captionPickHandler, true);
+        this.captionPickHandler = null;
+      }
+      for (const item of this.hiddenSiteCaptions) {
+        try {
+          item.element.style.display = item.display || '';
+        } catch (error) {
+          // The page may have removed the element.
+        }
+      }
+      this.hiddenSiteCaptions = [];
+      if (!options || options.notify !== false) {
+        this.view.setSiteCaptionStatus('站内字幕层已恢复。', 'ok');
+      }
+    }
+
     searchAnchor(query) {
       if (!this.subtitleDoc) {
         this.view.setAnchorStatus('请先加载字幕，再使用台词锚点。', 'warn');
@@ -1694,8 +1767,12 @@
         this.assOverlay.setEnabled(this.enabled);
       }
       if (this.isAssDocument && this.isAssDocument()) {
-        if (this.enabled) this.mutePageTracks();
-        else this.restorePageTracks();
+        if (this.enabled) {
+          this.mutePageTracks();
+        } else {
+          this.restorePageTracks();
+          this.restoreSiteCaptions();
+        }
       }
       this.view.setEnabled(this.enabled);
 
@@ -1760,10 +1837,13 @@
       }
       this.assMutedTracks = null;
       this.assTrackListener = null;
+      this.hiddenSiteCaptions = [];
+      this.captionPickHandler = null;
     }
 
     detachAssOverlay() {
       this.restorePageTracks();
+      this.restoreSiteCaptions({ notify: false });
       if (this.assOverlay) {
         this.assOverlay.destroy();
         this.assOverlay = null;

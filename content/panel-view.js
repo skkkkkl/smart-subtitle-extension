@@ -359,6 +359,25 @@
         pointer-events: none;
       }
       .offset-apply button { flex: 0 0 66px; }
+      .site-caption-tools {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        margin-top: 9px;
+      }
+      .site-caption-tools button {
+        height: 25px;
+        padding: 0 8px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--bg-raised);
+        color: #b7c5ca;
+        font-size: 9px;
+        cursor: pointer;
+      }
+      .site-caption-tools button:hover { background: #29313d; }
+      .site-caption-tools span { color: #77848e; font-size: 9px; line-height: 1.35; }
       .auto-estimate {
         margin-top: 12px;
         padding: 9px;
@@ -1172,6 +1191,11 @@
             <button type="button" data-action="reset-offset">归零</button>
           </div>
           <p class="hint">正数延迟字幕，负数提前字幕；归零可恢复原始时间轴。</p>
+          <div class="site-caption-tools">
+            <button type="button" data-action="hide-site-caption">隐藏站内字幕</button>
+            <button type="button" data-action="restore-site-caption">恢复</button>
+            <span data-role="site-caption-status">站内字幕与本地 ASS 叠加时使用。</span>
+          </div>
         </section>
 
         <section class="section" data-page="sync">
@@ -1394,7 +1418,7 @@
         </div>
 
         <footer>
-          <span>v0.13.0 · SRT / VTT / ASS</span>
+          <span>v0.14.0 · SRT / VTT / ASS</span>
           <span>在线搜索可选 · 自动分析</span>
         </footer>
       </div>
@@ -1704,6 +1728,12 @@
           break;
         case 'tab':
           this.setTab(target.getAttribute('data-tab'));
+          break;
+        case 'hide-site-caption':
+          if (this.callbacks.onHideSiteCaption) this.callbacks.onHideSiteCaption();
+          break;
+        case 'restore-site-caption':
+          if (this.callbacks.onRestoreSiteCaption) this.callbacks.onRestoreSiteCaption();
           break;
         case 'font-step': {
           const delta = Number(target.getAttribute('data-delta'));
@@ -2275,6 +2305,14 @@
         warning.textContent = '';
         warning.classList.add('is-hidden');
       }
+    }
+
+    setSiteCaptionStatus(text, tone) {
+      const node = this._q('site-caption-status');
+      if (!node) return;
+      node.textContent = text || '';
+      node.style.color =
+        tone === 'warn' ? '#e7c57a' : tone === 'ok' ? 'var(--accent)' : '';
     }
 
     setFirstLineStatus(text, tone) {
