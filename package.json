@@ -6,9 +6,15 @@
   "scripts": {
     "test": "node --test \"tests/*.test.js\"",
     "demo": "node demo/server.js",
-    "build:firefox": "node scripts/build-firefox.mjs"
+    "build:firefox": "node scripts/build-firefox.mjs",
+    "lint:firefox": "web-ext lint --source-dir dist/firefox",
+    "pack:firefox": "node scripts/pack-firefox.mjs",
+    "release:firefox": "node scripts/build-firefox.mjs && node scripts/pack-firefox.mjs"
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "web-ext": "^10.8.0"
   }
 }
