@@ -31,7 +31,11 @@
       const opts = options || {};
       this.runtime =
         opts.runtime ||
-        (host.chrome && host.chrome.runtime ? host.chrome.runtime : null);
+        (host.browser && host.browser.runtime
+          ? host.browser.runtime
+          : host.chrome && host.chrome.runtime
+            ? host.chrome.runtime
+            : null);
       this.maxEntries = Number.isInteger(opts.maxEntries)
         ? opts.maxEntries
         : 50;

@@ -1,5 +1,8 @@
 'use strict';
 
+  const extensionApi =
+    typeof browser !== 'undefined' && browser.runtime ? browser : chrome;
+
 (function () {
   const NS = globalThis.SmartSubtitle;
   const SettingsModel = NS.storage.SettingsModel;
@@ -55,15 +58,15 @@
   function hasPermissionsApi() {
     return Boolean(
       typeof chrome !== 'undefined' &&
-        chrome.permissions &&
-        chrome.permissions.contains
+        extensionApi.permissions &&
+        extensionApi.permissions.contains
     );
   }
 
   async function providerPermissionGranted() {
     if (!hasPermissionsApi()) return false;
     try {
-      return await chrome.permissions.contains({
+      return await extensionApi.permissions.contains({
         origins: ['https://*.opensubtitles.com/*']
       });
     } catch (error) {
@@ -74,12 +77,12 @@
   async function requestProviderPermission() {
     if (
       typeof chrome === 'undefined' ||
-      !chrome.permissions ||
-      !chrome.permissions.request
+      !extensionApi.permissions ||
+      !extensionApi.permissions.request
     ) {
       return false;
     }
-    return chrome.permissions.request({
+    return extensionApi.permissions.request({
       origins: ['https://*.opensubtitles.com/*']
     });
   }
@@ -87,12 +90,12 @@
   async function removeProviderPermission() {
     if (
       typeof chrome === 'undefined' ||
-      !chrome.permissions ||
-      !chrome.permissions.remove
+      !extensionApi.permissions ||
+      !extensionApi.permissions.remove
     ) {
       return false;
     }
-    return chrome.permissions.remove({
+    return extensionApi.permissions.remove({
       origins: ['https://*.opensubtitles.com/*']
     });
   }
@@ -176,8 +179,8 @@
   async function testProviderConnection() {
     if (
       typeof chrome === 'undefined' ||
-      !chrome.runtime ||
-      !chrome.runtime.sendMessage
+      !extensionApi.runtime ||
+      !extensionApi.runtime.sendMessage
     ) {
       setProviderStatus('当前不是扩展环境，无法测试在线来源。', 'warn');
       return;
@@ -185,7 +188,7 @@
     testProviderButton.disabled = true;
     setProviderStatus('正在连接 OpenSubtitles…', '');
     try {
-      const response = await chrome.runtime.sendMessage({
+      const response = await extensionApi.runtime.sendMessage({
         type: 'SMART_SUBTITLE_PROVIDER_SEARCH',
         query: { title: 'matrix', language: 'en' }
       });
@@ -424,7 +427,7 @@
       setStatus(
         store.persistent
           ? '设置已加载。修改后点击“保存设置”。'
-          : '当前为临时内存存储；在扩展页中会使用 chrome.storage.local。',
+          : '当前为临时内存存储；在扩展页中会使用浏览器扩展存储。',
         store.persistent ? 'ok' : 'warn'
       );
       await refreshCacheCount();

@@ -179,7 +179,21 @@ offset = 当前视频时间 - 选中字幕的开始时间
 - iframe、Shadow DOM 内视频、Canvas/DRM 播放器不支持。
 - 原生全屏时面板可能不在全屏层内。
 - 站点覆盖范围有限，未做完整站点矩阵。
-- Android 未实现。
+- Chrome Android 不支持扩展；Firefox Android 使用独立构建（手动首句/文本锚点）。
+
+## Firefox Android
+
+Firefox Android 版使用 `dist/firefox/` 构建：
+
+- 支持文本锚点、手动首句、字幕外观、偏移；
+- 不读取标签页音频，自动首句/音频按钮隐藏；
+- 通过 AMO 签名后安装。
+
+构建：
+
+```bash
+npm run build:firefox
+```
 
 ## 开发与测试
 

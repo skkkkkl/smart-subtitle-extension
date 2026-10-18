@@ -62,9 +62,11 @@
       const opts = options || {};
       this.storage =
         opts.storage ||
-        (typeof chrome !== 'undefined' && chrome.storage
-          ? chrome.storage.local
-          : null);
+        (typeof browser !== 'undefined' && browser.storage
+          ? browser.storage.local
+          : typeof chrome !== 'undefined' && chrome.storage
+            ? chrome.storage.local
+            : null);
       this.memory = null;
     }
 

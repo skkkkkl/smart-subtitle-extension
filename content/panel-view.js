@@ -1107,7 +1107,7 @@
               <button type="button" data-action="tab-audio-calibrate">标签页多窗口 40s</button>
               <span data-role="audio-status">未检测音频</span>
             </div>
-            <p class="auto-estimate-note">标签页多窗口需要 tabCapture 权限：连续采样约 40 秒，分成 5 个窗口做一致性校验；仅在本机分析，DRM/静音标签页可能失败。</p>
+            <p class="auto-estimate-note" data-role="audio-note">标签页多窗口需要 tabCapture 权限：连续采样约 40 秒，分成 5 个窗口做一致性校验；仅在本机分析，DRM/静音标签页可能失败。</p>
             <details class="audio-diagnostics is-hidden" data-role="audio-diagnostics">
               <summary>校准诊断</summary>
               <pre data-role="audio-diagnostics-text"></pre>
@@ -1297,7 +1297,7 @@
         </div>
 
         <footer>
-          <span>v0.11.0 · SRT / VTT / ASS</span>
+          <span>v0.12.0 · SRT / VTT / ASS</span>
           <span>在线搜索可选 · 自动分析</span>
         </footer>
       </div>
@@ -1307,6 +1307,7 @@
   class PanelView {
     constructor(callbacks) {
       this.callbacks = callbacks || {};
+      this.capabilities = (NS.capabilities || {});
       this.host = null;
       this.shadow = null;
       this.panel = null;
@@ -1346,6 +1347,25 @@
       ];
     }
 
+    _applyCapabilities() {
+      if (this.capabilities.audioCapture !== false) return;
+      const selectors = [
+        '.audio-calibration',
+        '.audio-diagnostics',
+        '[data-role="audio-note"]',
+        '[data-action="auto-first-line"]'
+      ];
+      for (const selector of selectors) {
+        const node = this.shadow.querySelector(selector);
+        if (node) node.classList.add('is-hidden');
+      }
+      const note = this.shadow.querySelector('.first-line-sync .auto-estimate-note');
+      if (note) {
+        note.textContent =
+          '当前浏览器不支持标签页音频捕获；请使用「手动标记首句」或「台词锚点」。';
+      }
+    }
+
     mount() {
       if (this._mounted) return;
       if (!document.documentElement) {
@@ -1365,7 +1385,13 @@
       this.host.style.pointerEvents = 'auto';
 
       this.shadow = this.host.attachShadow({ mode: 'open' });
-      this.shadow.innerHTML = TEMPLATE;
+      const templateDoc = new DOMParser().parseFromString(
+        '<template>' + TEMPLATE + '</template>',
+        'text/html'
+      );
+      const templateNode = templateDoc.querySelector('template');
+      this.shadow.append(document.importNode(templateNode.content, true));
+      this._applyCapabilities();
       this.panel = this.shadow.querySelector('[data-role="panel"]');
       this._appendHost();
 

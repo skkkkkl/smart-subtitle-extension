@@ -327,7 +327,10 @@
     }
 
     openOptionsPage() {
-      const runtime = root.chrome && root.chrome.runtime;
+      const runtime =
+        root.browser && root.browser.runtime
+          ? root.browser.runtime
+          : root.chrome && root.chrome.runtime;
       try {
         if (runtime && typeof runtime.openOptionsPage === 'function') {
           const result = runtime.openOptionsPage();

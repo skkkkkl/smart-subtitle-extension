@@ -65,6 +65,13 @@
   function resolveArea() {
     try {
       if (
+        host.browser &&
+        host.browser.storage &&
+        host.browser.storage.local
+      ) {
+        return { area: host.browser.storage.local, persistent: true };
+      }
+      if (
         host.chrome &&
         host.chrome.storage &&
         host.chrome.storage.local
@@ -89,6 +96,9 @@
       this.prefix = opts.prefix || DATA_PREFIX;
       this.onChanged =
         opts.onChanged ||
+        (host.browser &&
+          host.browser.storage &&
+          host.browser.storage.onChanged) ||
         (host.chrome && host.chrome.storage && host.chrome.storage.onChanged) ||
         null;
     }

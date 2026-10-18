@@ -1,0 +1,62 @@
+{
+  "manifest_version": 2,
+  "name": "本地字幕助手",
+  "short_name": "本地字幕",
+  "version": "0.12.0",
+  "description": "在网页 HTML5 视频上加载 SRT/VTT/ASS 字幕，调整时间轴和字幕外观；默认本地处理。",
+  "permissions": [
+    "activeTab",
+    "storage"
+  ],
+  "optional_permissions": [
+    "https://*.opensubtitles.com/*"
+  ],
+  "background": {
+    "scripts": [
+      "shared/namespace.js",
+      "storage/subtitle-cache.js",
+      "storage/provider-store.js",
+      "matching/opensubtitles-provider.js",
+      "background/background.js"
+    ],
+    "persistent": false
+  },
+  "browser_action": {
+    "default_title": "打开本地字幕面板",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+  "commands": {
+    "_execute_browser_action": {
+      "suggested_key": {
+        "default": "Alt+Shift+S"
+      },
+      "description": "打开本地字幕面板"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "smart-subtitle@skkkkkl.github.io",
+      "strict_min_version": "142.0",
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ]
+      }
+    }
+  }
+}

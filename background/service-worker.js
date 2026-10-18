@@ -62,6 +62,7 @@ const providerModule =
 
 const CONTENT_FILES = [
   'shared/namespace.js',
+  'shared/capabilities.js',
   'subtitles/subtitle-error.js',
   'subtitles/timing.js',
   'subtitles/file-decoder.js',

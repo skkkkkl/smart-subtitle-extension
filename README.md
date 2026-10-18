@@ -2,7 +2,7 @@
 
 面向 Chrome 的本地优先字幕扩展。在网页 HTML5 视频上加载 SRT、VTT、ASS/SSA 字幕，实时调整时间轴和外观；字幕与媒体文件默认不离开本机。
 
-> 状态：`0.11.0`。音频自动对齐仍为实验能力；推荐使用「首句对齐」或「台词锚点」完成可靠校准。
+> 状态：`0.12.0`。桌面版支持 Chrome/Edge；Firefox Android 版使用独立构建。音频自动对齐仍为实验能力；推荐使用「首句对齐」或「台词锚点」完成可靠校准。
 
 ## 功能
 
@@ -38,6 +38,24 @@
 7. 也可用「首句对齐」：从片头播放，自动检测第一段持续声音，或手动标记首句。
 
 完整操作说明见 [docs/USAGE.md](docs/USAGE.md)。
+
+## Firefox Android
+
+Firefox Android 版是独立构建，使用 Manifest V2：
+
+```bash
+npm run build:firefox
+# 输出：dist/firefox/
+```
+
+将 `dist/firefox/` 打包为 ZIP 后提交 addons.mozilla.org（AMO），由 Mozilla 签名生成可分发的 XPI。
+
+Firefox Android 版：
+
+- 支持 SRT/VTT/ASS、外观、偏移、文本锚点、手动首句；
+- 不包含 `tabCapture`/`offscreen`，自动音频/首句检测按钮会隐藏；
+- 最低 Firefox Android `142.0`；
+- 不做全站权限申请，仅 `activeTab` + 可选 OpenSubtitles 域名。
 
 ## 自动时间轴（实验）
 
@@ -97,6 +115,7 @@ npm run demo
 ```
 
 - 测试：`node --test`，当前 **126** 项。
+- Firefox 构建：`npm run build:firefox`，`web-ext lint` 0 errors / 0 warnings。
 - 演示站：`http://localhost:8787/demo/`（`npm run demo` 后打开）。
 
 ## 目录
@@ -114,6 +133,8 @@ npm run demo
 ├── offscreen/           # 标签页音频采样
 ├── tests/               # node:test 单元测试
 ├── demo/                # 本地演示页
+├── firefox/             # Firefox Android Manifest/背景页
+├── scripts/             # 构建脚本
 └── docs/                # 使用说明
 ```
 

@@ -4,3 +4,8 @@ node_modules/
 Thumbs.db
 .tmp-*
 *.tmp
+dist/
+web-ext-artifacts/
+*.crx
+*.pem
+*.xpi
