@@ -50,7 +50,59 @@ npm run build:firefox
 # 输出：dist/firefox/
 ```
 
-将 `dist/firefox/` 打包为 ZIP 后提交 addons.mozilla.org（AMO），由 Mozilla 签名生成可分发的 XPI。
+### 在手机上安装（不需要自己搞签名）
+
+Android 版 Firefox **没有**桌面版那种「关闭签名校验」的开关：`xpinstall.signatures.required` 在正式版 Android 上无效，`about:config` 里也改不动，所以未签名的 XPI 无法装到手机上。唯一可行的路线是让 Mozilla 帮你签一次名，全程不用购买证书：
+
+1. 打包：
+   ```bash
+   npm run release:firefox
+   # 输出：dist/smart-subtitle-firefox-mobile-0.14.0.zip
+   ```
+2. 登录 [addons.mozilla.org Developer Hub](https://addons.mozilla.org/developers/) → Submit a New Add-on → **选择「On your own」（unlisted）**。unlisted 不会出现在商店搜索结果里，只用于自己安装，仍需 Mozilla 的人工/自动审核（通常几分钟到一天）。
+3. 选 `dist/firefox/` 或上一步的 ZIP，提交后回到「My Add-ons」，在该版本上点 **Download file**，得到已签名的 `.xpi`。
+4. 把 `.xpi` 传到手机（数据线 / 网盘 / `adb push`），在文件管理器里点击它，选择用 Firefox 打开即可安装。安装后可在 `about:addons` 中检查。
+5. 以后每次发版：把 `version` 加一，重复步骤 1–4，走同一个 add-on 的「Upload New Version」，覆盖安装不会丢设置。
+
+插件 ID 固定为 `smart-subtitle-mobile@skkkkkl.github.io`（见 `firefox/manifest.json`），请始终用同一个 ID 提交，否则会被当成另一个插件，`storage` 里的设置和字幕缓存不会延续。
+
+如果已经拿到 AMO API 凭据，也可以一行命令签名，省去网页操作：
+
+```bash
+WEB_EXT_API_KEY=user:xxxxx:yy WEB_EXT_API_SECRET=... npm run pack:firefox
+# 输出的是已签名产物，直接拷到手机安装
+```
+
+常见替代方案与不能用的原因：
+
+- **桌面 Firefox 关闭签名校验**：只对 Firefox Nightly / Developer Edition / ESR 的桌面版有效，且不能同步扩展到 Android；
+- **Chrome / Edge Android**：官方不支持桌面式扩展；
+- **Kiwi / Lemur 等 Chromium 分支**：可以直接装 `manifest.json`（Chrome 版）的「加载已解压」等价流程，但手机端拿不到标签页音频，详见下一节；
+- **把扩展改成书签小工具（bookmarklet）或用户脚本**：能在手机浏览器里跑，但受页面 CSP、Shadow DOM 与文件选择限制，不是等价方案。
+
+### Kiwi 等 Chromium 分支
+
+Kiwi 是基于 Chromium 的 Android 浏览器，保留桌面扩展支持，可以加载本项目的 Chrome 构建：
+
+1. 电脑上把仓库压缩成 ZIP（不要把 `node_modules/`、`dist/`、`.git/` 打进去，根目录必须直接是 `manifest.json`）；
+2. 传到手机，解压到内部存储的任意目录；
+3. Kiwi → 设置 → 扩展程序 → 打开「开发者模式」→「加载已解压的扩展程序」→ 选中该目录（部分版本提供「从文件安装」直接选 ZIP）。
+
+`shared/capabilities.js` 会按运行时探测降级，手机 Chromium 上表现为：
+
+- 自动音频校准、自动首句检测按钮隐藏（`tabCapture` + `offscreen` 在手机 Kiwi 上不可用，即使 `manifest.json` 里声明了）；
+- 面板切换为触摸尺寸（更大的关闭/折叠按钮、更大的页签），启动时停靠在屏幕顶部；
+- SRT / VTT / ASS 加载、偏移、外观、台词锚点、手动首句、字幕库、OpenSubtitles 都与桌面一致；
+- 最低需要 `minimum_chrome_version: 109` 对应的 Chromium 内核；新版 Kiwi（Chromium 126+）可用。
+
+Kiwi 版与 Firefox Android 版的差别：
+
+| | Kiwi（Chrome 构建） | Firefox Android（`dist/firefox/`） |
+| --- | --- | --- |
+| 安装 | 解压加载，无需签名 | 必须 AMO 签名的 XPI |
+| 音频自动校准 | 不可用 | 不可用 |
+| 在线 OpenSubtitles | 可用（需在设置页授权域名） | 可用 |
+| 更新 | 重新解压覆盖 | 覆盖安装 XPI，设置保留 |
 
 Firefox Android 版：
 
@@ -106,7 +158,7 @@ Firefox Android 版：
 - 原生全屏时面板可能被排除在全屏层外。
 - OpenSubtitles 返回 ZIP 时不会自动解压。
 - 在线搜索需要用户自己的 API Key 和账号配额。
-- 仅面向桌面 Chrome；Android 未实现。
+- 桌面 Chrome/Edge 与 Firefox Android 为受支持目标；Kiwi 等 Chromium 分支可加载 Chrome 构建，但手机上没有标签页音频自动校准。
 
 ## 开发
 
@@ -117,7 +169,7 @@ npm test
 npm run demo
 ```
 
-- 测试：`node --test`，当前 **126** 项。
+- 测试：`node --test`，当前 **134** 项。
 - Firefox 构建：`npm run build:firefox`，`web-ext lint` 0 errors / 0 warnings。
 - 演示站：`http://localhost:8787/demo/`（`npm run demo` 后打开）。
 

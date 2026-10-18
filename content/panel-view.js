@@ -1470,7 +1470,13 @@
       ];
     }
 
+    _isCompact() {
+      const width = Number(root.innerWidth) || 0;
+      return Boolean(this.capabilities.mobile) || (width > 0 && width <= 480);
+    }
+
     _applyCapabilities() {
+      this._applyMobileLayout();
       if (this.capabilities.audioCapture !== false) return;
       const selectors = [
         '.audio-calibration',
@@ -1489,6 +1495,26 @@
       }
     }
 
+    /*
+     * Touch-size overrides for phone browsers (Firefox Android, Kiwi). Kept in
+     * one injected rule block so the desktop stylesheet stays untouched.
+     */
+    _applyMobileLayout() {
+      const compact = this._isCompact();
+      this.compact = compact;
+      if (!compact) return;
+      const style = document.createElement('style');
+      style.setAttribute('data-role', 'mobile-layout');
+      style.textContent = [
+        '.panel { border-radius: 14px; font-size: 14px; }',
+        '.icon-btn { width: 40px; height: 40px; font-size: 19px; }',
+        '.tab-nav button { min-height: 40px; font-size: 13px; }',
+        'button, [role="button"], select { touch-action: manipulation; }',
+        '.body { -webkit-overflow-scrolling: touch; }'
+      ].join('\n');
+      this.shadow.append(style);
+    }
+
     mount() {
       if (this._mounted) return;
       if (!document.documentElement) {
@@ -1499,8 +1525,10 @@
       this.host.id = 'smart-subtitle-host';
       this.host.setAttribute('data-smart-subtitle-host', 'true');
       this.host.style.position = 'fixed';
-      this.host.style.top = '18px';
-      this.host.style.right = '18px';
+      // On phones the panel starts as a full-width sheet docked to the top;
+      // the header drag handle still lets the user move it after zoom-out.
+      this.host.style.top = this._isCompact() ? '8px' : '18px';
+      this.host.style.right = this._isCompact() ? '8px' : '18px';
       this.host.style.zIndex = '2147483646';
       this.host.style.width =
         'min(' + PANEL_WIDTH + 'px, calc(100vw - 24px))';
@@ -1515,8 +1543,7 @@
       const templateNode = templateDoc.querySelector('template');
       this.shadow.append(document.importNode(templateNode.content, true));
       this._applyCapabilities();
-      this.panel = this.shadow.querySelector('[data-role="panel"]');
-      this._appendHost();
+      this.panel = this.shadow.querySelector('[data-role="panel"]');      this._appendHost();
 
       this.shadow.addEventListener('click', this._onClick);
       this.shadow.addEventListener('keydown', this._onKeyDown);
@@ -2131,12 +2158,30 @@
 
     _onViewportResize() {
       if (!this.host || this.host.hidden) return;
+      if (this._isCompact() !== this.compact) {
+        // Orientation change crossed the compact breakpoint: re-run capability
+        // and touch-layout decisions for the new viewport.
+        this._removeMobileLayout();
+        this._applyCapabilities();
+        if (this.compact) {
+          this.host.style.width = this.panel &&
+            this.panel.classList.contains('collapsed')
+            ? 'min(' + COLLAPSED_WIDTH + 'px, calc(100vw - 24px))'
+            : 'min(' + PANEL_WIDTH + 'px, calc(100vw - 24px))';
+        }
+      }
       if (this.host.style.left && this.host.style.left !== 'auto') {
         const rect = this.host.getBoundingClientRect();
         const clamped = this._clamp(rect.left, rect.top);
         this.host.style.left = clamped.left + 'px';
         this.host.style.top = clamped.top + 'px';
       }
+    }
+
+    _removeMobileLayout() {
+      if (!this.shadow) return;
+      const style = this.shadow.querySelector('[data-role="mobile-layout"]');
+      if (style) style.remove();
     }
 
     _onFullscreenChange() {

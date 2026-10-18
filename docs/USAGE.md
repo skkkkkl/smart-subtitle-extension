@@ -202,6 +202,17 @@ offset = 当前视频时间 - 选中字幕的开始时间
 - 原生全屏时面板可能不在全屏层内。
 - 站点覆盖范围有限，未做完整站点矩阵。
 - Chrome Android 不支持扩展；Firefox Android 使用独立构建（手动首句/文本锚点）。
+- Kiwi 等 Chromium 分支可以加载 Chrome 构建，但手机端没有标签页音频自动校准。
+
+## 手机浏览器（Kiwi）
+
+把仓库（不含 `node_modules/`、`dist/`、`.git/`）压缩成 ZIP 后传到手机，解压，然后在 Kiwi 的设置 → 扩展程序里打开「开发者模式」，选择「加载已解压的扩展程序」并指向 `manifest.json` 所在目录。
+
+在手机上，`shared/capabilities.js` 会按运行时探测隐藏不可用的按钮：
+
+- 自动音频校准、自动首句检测不可用；
+- 面板使用触摸尺寸，启动时停靠在屏幕顶部，可拖动标题栏移动；
+- 字幕加载、偏移、外观、台词锚点、手动首句、字幕库、在线搜索均可用。
 
 ## Firefox Android
 
@@ -209,13 +220,18 @@ Firefox Android 版使用 `dist/firefox/` 构建：
 
 - 支持文本锚点、手动首句、字幕外观、偏移；
 - 不读取标签页音频，自动首句/音频按钮隐藏；
-- 通过 AMO 签名后安装。
+- 必须使用 Mozilla 签名的 XPI 安装，Android 版 Firefox 无法关闭扩展签名校验。
 
-构建：
+构建与安装：
 
 ```bash
-npm run build:firefox
+npm run build:firefox   # 生成 dist/firefox/
+npm run release:firefox # 生成 dist/smart-subtitle-firefox-mobile-<version>.zip
 ```
+
+把 ZIP 提交到 addons.mozilla.org 的 unlisted（「On your own」）渠道，下载签名后的 XPI，拷到手机上用 Firefox 打开安装。详见 [README](../README.md#在手机上安装不需要自己搞签名)。
+
+已配置 AMO API 凭据时，可用 `WEB_EXT_API_KEY` / `WEB_EXT_API_SECRET` 直接执行 `npm run pack:firefox` 完成签名。
 
 ## 开发与测试
 
@@ -226,4 +242,4 @@ npm test
 npm run demo
 ```
 
-当前测试：**126 项通过**。
+当前测试：**134 项通过**。

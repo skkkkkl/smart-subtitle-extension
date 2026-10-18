@@ -250,6 +250,16 @@ async function ensureOffscreenDocument() {
   }
 }
 
+async function isMobileChromium() {
+  try {
+    if (!chrome.runtime.getPlatformInfo) return false;
+    const info = await chrome.runtime.getPlatformInfo();
+    return Boolean(info && info.os === 'android');
+  } catch (error) {
+    return false;
+  }
+}
+
 async function handleTabAudioCalibration(message) {
   if (!chrome.tabCapture || !chrome.tabCapture.getMediaStreamId) {
     throw new Error('当前浏览器不支持标签页音频捕获。');
@@ -259,6 +269,12 @@ async function handleTabAudioCalibration(message) {
   }
   const tabId = message.tabId;
   if (!Number.isInteger(tabId)) throw new Error('没有可捕获的标签页。');
+  // Mobile Chromium (Kiwi et al.) keeps the MV3 permissions in the manifest but
+  // cannot capture tab audio, and a thrown DOMException here surfaces as an
+  // opaque failure; the content script already hides this UI on mobile.
+  if ((await isMobileChromium()) === true) {
+    throw new Error('手机浏览器不支持标签页音频捕获。');
+  }
   const streamId = await chrome.tabCapture.getMediaStreamId({
     targetTabId: tabId
   });
