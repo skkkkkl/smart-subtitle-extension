@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>本地字幕助手 · 设置</title>
+    <link rel="stylesheet" href="options.css">
+  </head>
+  <body>
+    <div class="glow" aria-hidden="true"></div>
+    <header class="topbar">
+      <div class="brand">
+        <img src="../icons/icon48.png" width="38" height="38" alt="">
+        <div>
+          <div class="brand-name">本地字幕助手</div>
+          <div class="brand-sub">LOCAL SUBTITLE · v0.9.11</div>
+        </div>
+      </div>
+      <div class="local-pill"><span></span>本地保存</div>
+    </header>
+
+    <main>
+      <section class="intro">
+        <div class="eyebrow">APPEARANCE &amp; PRIVACY</div>
+        <h1>字幕外观</h1>
+        <p>这里的外观会应用到本地字幕轨道。设置只保存在 <code>chrome.storage.local</code>，不会上传。</p>
+      </section>
+
+      <div class="layout">
+        <section class="card preview-card" aria-label="样式预览">
+          <div class="card-head">
+            <h2>实时预览</h2>
+            <span class="tag">::cue</span>
+          </div>
+          <div class="screen">
+            <div class="screen-glow" aria-hidden="true"></div>
+            <div class="fake-video">
+              <div class="cue" data-role="preview-cue" style="top: 90%;">
+                <span data-role="preview-text">字幕样式预览<br>第二行示例</span>
+              </div>
+              <div class="fake-controls" aria-hidden="true">
+                <span class="play">▶</span>
+                <span class="bar"><i></i></span>
+                <span class="time">00:42</span>
+              </div>
+            </div>
+          </div>
+          <p class="muted">
+            预览只模拟字号、颜色、描边、背景和纵向位置。实际渲染仍由 Chrome 原生
+            TextTrack 完成，站点自己的 cue 设置可能优先生效。
+          </p>
+        </section>
+
+        <form class="card form-card" id="settings-form">
+          <div class="card-head">
+            <h2>显示设置</h2>
+            <button class="text-btn" type="button" id="reset-form">恢复默认值</button>
+          </div>
+
+          <div class="field-grid">
+            <div class="field">
+              <div class="field-head">
+                <label for="fontSize">字号</label>
+                <output id="fontSizeOut" for="fontSize">24px</output>
+              </div>
+              <input id="fontSize" data-setting="fontSize" type="range" min="14" max="48" step="1" value="24">
+            </div>
+            <div class="field">
+              <div class="field-head"><label for="fontWeight">字重</label></div>
+              <select id="fontWeight" class="select" data-setting="fontWeight">
+                <option value="400">常规 400</option>
+                <option value="500">中等 500</option>
+                <option value="600" selected>半粗 600</option>
+                <option value="700">粗体 700</option>
+                <option value="800">特粗 800</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="color-grid">
+            <div class="color-item">
+              <label for="color">文字颜色</label>
+              <input id="color" data-setting="color" type="color" value="#ffffff">
+            </div>
+            <div class="color-item">
+              <label for="outlineColor">描边颜色</label>
+              <input id="outlineColor" data-setting="outlineColor" type="color" value="#000000">
+            </div>
+            <div class="color-item">
+              <label for="backgroundColor">背景颜色</label>
+              <input id="backgroundColor" data-setting="backgroundColor" type="color" value="#000000">
+            </div>
+            <div class="color-item">
+              <label for="backgroundOpacity">背景不透明度</label>
+              <div class="range-with-value">
+                <input id="backgroundOpacity" data-setting="backgroundOpacity" type="range" min="0" max="95" step="5" value="70">
+                <output id="backgroundOpacityOut" for="backgroundOpacity">70%</output>
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="field-head">
+              <label for="outlineWidth">描边宽度</label>
+              <output id="outlineWidthOut" for="outlineWidth">2px</output>
+            </div>
+            <input id="outlineWidth" data-setting="outlineWidth" type="range" min="0" max="6" step="0.5" value="2">
+          </div>
+
+          <div class="field">
+            <div class="field-head">
+              <label for="position">纵向位置</label>
+              <output id="positionOut" for="position">90%</output>
+            </div>
+            <input id="position" data-setting="position" type="range" min="60" max="96" step="1" value="90">
+            <p class="hint">数字越大越靠近视频底部。在播放面板拖动时会实时移动；自带 <code>line</code> 的 cue 保留原位置。</p>
+          </div>
+
+          <section class="shadow-section">
+            <div class="shadow-section-head">
+              <div>
+                <h3>投影阴影</h3>
+                <p>在描边之外增加一层柔和投影，提升复杂画面上的可读性。</p>
+              </div>
+              <label class="mini-toggle">
+                <input id="shadowEnabled" data-setting="shadowEnabled" type="checkbox" checked>
+                <span>启用</span>
+              </label>
+            </div>
+            <div class="shadow-grid">
+              <div class="color-item">
+                <label for="shadowColor">阴影颜色</label>
+                <input id="shadowColor" data-setting="shadowColor" type="color" value="#000000">
+              </div>
+              <div class="field">
+                <div class="field-head">
+                  <label for="shadowOpacity">不透明度</label>
+                  <output id="shadowOpacityOut" for="shadowOpacity">55%</output>
+                </div>
+                <input id="shadowOpacity" data-setting="shadowOpacity" type="range" min="0" max="90" step="5" value="55">
+              </div>
+              <div class="field">
+                <div class="field-head">
+                  <label for="shadowBlur">模糊</label>
+                  <output id="shadowBlurOut" for="shadowBlur">4px</output>
+                </div>
+                <input id="shadowBlur" data-setting="shadowBlur" type="range" min="0" max="16" step="1" value="4">
+              </div>
+              <div class="field">
+                <div class="field-head">
+                  <label for="shadowOffsetX">X 偏移</label>
+                  <output id="shadowOffsetXOut" for="shadowOffsetX">0px</output>
+                </div>
+                <input id="shadowOffsetX" data-setting="shadowOffsetX" type="range" min="-16" max="16" step="1" value="0">
+              </div>
+              <div class="field">
+                <div class="field-head">
+                  <label for="shadowOffsetY">Y 偏移</label>
+                  <output id="shadowOffsetYOut" for="shadowOffsetY">2px</output>
+                </div>
+                <input id="shadowOffsetY" data-setting="shadowOffsetY" type="range" min="-16" max="16" step="1" value="2">
+              </div>
+            </div>
+          </section>
+
+          <div class="form-actions">
+            <button class="primary" type="submit">保存设置</button>
+            <button class="secondary" type="button" id="clear-data">清除本地数据</button>
+          </div>
+          <p class="status" data-role="status" role="status" aria-live="polite">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span data-role="status-text">正在读取设置…</span>
+          </p>
+        </form>
+      </div>
+
+      <section class="card provider-card">
+        <div class="card-head">
+          <div>
+            <h2>在线字幕来源</h2>
+            <p class="provider-lead">可选接入 OpenSubtitles。只发送片名、年份、语言和集数，不发送视频或字幕文件。</p>
+          </div>
+          <span class="tag">OPTIONAL</span>
+        </div>
+        <div class="provider-grid">
+          <label class="provider-field">
+            OpenSubtitles API Key
+            <input id="providerApiKey" data-role="provider-api-key" type="password" placeholder="粘贴你的 API Key" autocomplete="off" spellcheck="false">
+          </label>
+          <label class="provider-check">
+            <input id="providerEnabled" data-role="provider-enabled" type="checkbox">
+            <span>启用在线搜索（会请求域名权限）</span>
+          </label>
+        </div>
+        <div class="form-actions provider-actions">
+          <button class="primary" type="button" id="save-provider">保存来源设置</button>
+          <button class="secondary" type="button" id="test-provider">测试连接</button>
+          <a class="provider-link" href="https://www.opensubtitles.com/" target="_blank" rel="noreferrer">获取 OpenSubtitles API Key</a>
+        </div>
+        <p class="status" data-role="provider-status" role="status" aria-live="polite">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span data-role="provider-status-text">正在读取来源设置…</span>
+        </p>
+        <p class="hint">API Key 只保存在本机 <code>chrome.storage.local</code>；不会发送给内容脚本。字幕由 OpenSubtitles 提供，下载次数受其账号/API 限额约束。</p>
+      </section>
+
+      <section class="info-grid">
+        <article class="info-card">
+          <h2>如何生效</h2>
+          <p>保存后，已打开页面中的字幕面板会通过 <code>chrome.storage.onChanged</code> 自动更新外观；位置会直接更新当前 cue，不必重建轨道。</p>
+        </article>
+        <article class="info-card">
+          <h2>数据与隐私</h2>
+          <p>扩展不发送字幕、视频、音频或设置。启用 OpenSubtitles 时只发送片名/年份/语言/集数。字幕库缓存在扩展自己的 IndexedDB；清除本地数据会删除设置、缓存和 API Key。</p>
+        </article>
+        <article class="info-card">
+          <h2>快捷键</h2>
+          <p><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd> 打开或收起面板。可在 <code>chrome://extensions/shortcuts</code> 修改。</p>
+        </article>
+        <article class="info-card">
+          <h2>字幕匹配与缓存</h2>
+          <p>本地候选和字幕库始终可用；OpenSubtitles 在线搜索需要 API Key 并显式启用。</p>
+          <p>字幕库缓存：<strong data-role="cache-count">0</strong> 条。</p>
+        </article>
+      </section>
+    </main>
+
+    <footer>
+      <span>本地字幕助手 · Phase 2B · v0.9.11</span>
+      <span>默认无网络 · 可选 OpenSubtitles 域名权限 · 无音频采集</span>
+    </footer>
+
+    <script src="../shared/namespace.js"></script>
+    <script src="../storage/settings-model.js"></script>
+    <script src="../storage/settings-store.js"></script>
+    <script src="../storage/subtitle-cache.js"></script>
+    <script src="../storage/provider-store.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>

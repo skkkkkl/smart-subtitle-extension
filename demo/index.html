@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>本地字幕助手 · Phase 2B 演示</title>
+    <link rel="stylesheet" href="style.css">
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "VideoObject",
+        "name": "本地字幕助手演示",
+        "datePublished": "2026-10-18",
+        "inLanguage": "zh"
+      }
+    </script>
+  </head>
+  <body>
+    <div class="page-glow" aria-hidden="true"></div>
+    <header class="hero">
+      <div class="eyebrow">PHASE 2B · LOCAL FIRST</div>
+      <h1>本地字幕助手</h1>
+      <p class="lede">
+        在网页 HTML5 视频上加载本地 SRT / VTT 字幕，调节整体时间偏移和字幕外观。
+        字幕和音频不会离开这台电脑。
+      </p>
+      <div class="hero-badges">
+        <span>Chrome MV3</span>
+        <span>无上传</span>
+        <span>SRT / VTT</span>
+        <span>整体偏移</span>
+        <span>实时外观</span>
+        <span>投影阴影</span>
+        <span>本地候选匹配</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="card player-card">
+        <div class="video-shell">
+          <video id="demo-video" controls playsinline preload="metadata"></video>
+          <div class="video-empty" data-role="video-empty">
+            <div class="empty-icon" aria-hidden="true">▶</div>
+            <strong>选择一段本地视频</strong>
+            <span>演示页不附带视频文件</span>
+          </div>
+        </div>
+        <div class="player-controls">
+          <label class="button primary">
+            选择本地视频
+            <input id="video-file" type="file" accept="video/*" hidden>
+          </label>
+          <button id="add-video" class="button" type="button">添加第二个视频</button>
+          <button id="reset-demo" class="button ghost" type="button">重置演示</button>
+        </div>
+        <p class="file-line" data-role="video-name">尚未选择视频。可以使用任何你有权使用的本地 MP4/WebM。</p>
+        <div id="extra-videos" class="extra-videos"></div>
+      </section>
+
+      <section class="steps">
+        <article class="step">
+          <span class="step-number">01</span>
+          <h2>打开扩展面板</h2>
+          <p>点击工具栏里的「本地字幕助手」图标，或按 <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd>。</p>
+        </article>
+        <article class="step">
+          <span class="step-number">02</span>
+          <h2>选择字幕</h2>
+          <p>在面板中点击「选择 SRT / VTT 字幕」，选择本目录下的 <code>sample.zh.srt</code>，或使用你自己的字幕。</p>
+        </article>
+        <article class="step">
+          <span class="step-number">03</span>
+          <h2>校准与外观</h2>
+          <p>用毫秒按钮微调并「归零」；在「字幕外观」中调整字号、字重、描边、阴影和纵向位置，拖动位置时字幕实时移动。</p>
+        </article>
+      </section>
+
+      <section class="card notes-card">
+        <div>
+          <h2>示例字幕</h2>
+          <p>两个示例都从视频开头附近开始，方便验证加载、显示和偏移。</p>
+          <div class="sample-links">
+            <a href="sample.zh.srt" download>下载 sample.zh.srt</a>
+            <a href="sample.zh.vtt" download>下载 sample.zh.vtt</a>
+          </div>
+        </div>
+        <div class="notice">
+          <strong>测试提示</strong>
+          <p>
+            当前阶段只检测顶层文档中的 HTML5 <code>&lt;video&gt;</code>。
+            iframe、Shadow DOM、Canvas 和 DRM 播放器不在支持范围内。
+            如果页面使用视频元素全屏，浏览器会把面板排除在全屏层之外；字幕本身仍会显示。
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="page-footer">
+      <span>本地字幕助手 · Phase 2B</span>
+      <span>示例页面仅用于本地验证，不收集任何数据。</span>
+    </footer>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>
