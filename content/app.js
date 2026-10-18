@@ -302,6 +302,12 @@
       if (this.trackController) {
         this.trackController.setLinePosition(this.appearance.position);
       }
+      if (this.assFallbackActive && this.isAssDocument()) {
+        // Native cue text has no styling to update, but rebuilding keeps the
+        // position/cue metadata in step with the saved appearance. Skipped for
+        // the inline pre-build, where only the overlay is on screen.
+        this.scheduleAssFallbackTrack();
+      }
       if (this.view) this.view.setAppearance(this.appearance);
       if (this.subtitleDoc) this.refreshSubtitleCard();
       if (options && options.persist) {
@@ -317,6 +323,18 @@
       if (this.trackController) {
         this.trackController.setLinePosition(value);
       }
+    }
+
+    /*
+     * Debounced rebuild of the fullscreen fallback track. Rebuilding replaces
+     * the <track>, so a slider drag must not do it on every input event.
+     */
+    scheduleAssFallbackTrack() {
+      if (this.assFallbackTimer) clearTimeout(this.assFallbackTimer);
+      this.assFallbackTimer = setTimeout(() => {
+        this.assFallbackTimer = null;
+        void this.renderAssFallbackTrack();
+      }, 250);
     }
 
     persistSettings() {
@@ -1049,6 +1067,10 @@
      * Fullscreen-safe ASS rendering: the same dialogue as native cues, so text
      * stays visible. ASS layout, colours and \pos are lost until the user leaves
      * fullscreen, where renderAssSubtitle takes over again.
+     *
+     * The native track is pre-built while the overlay is still visible (the
+     * overlay sits on top and wins anyway), so entering video-element fullscreen
+     * needs no work at all and cannot show the previous offset.
      */
     async renderAssNativeFallback(reason) {
       this.clearError();
@@ -1069,30 +1091,12 @@
         this.assOverlay.setEnabled(false);
       }
       this.mutePageTracks();
-
-      const token = ++this.renderToken;
-      let generated;
-      try {
-        generated = this.subtitleDoc.toFallbackVtt(this.offsetMs, {
-          linePercent: this.appearance.position
-        });
-      } catch (error) {
-        this.showError(error, null);
-        this.view.setStatus('全屏下无法显示该 ASS 字幕', 'error');
-        return false;
-      }
-      this.lastShift = generated.shift;
       this.view.setStatus(reason || '正在切换全屏字幕…', 'busy');
 
+      const token = ++this.renderToken;
       try {
-        const result = await this.trackController.show(generated.vtt, {
-          label: '本地字幕（全屏简略）',
-          enabled: this.enabled,
-          lineManaged: generated.lineManaged
-        });
-        if (token !== this.renderToken || !this.started) return false;
-        this.trackController.setLinePosition(this.appearance.position);
-        this.cueStyle.attach(this.selectedVideo);
+        const result = await this.showAssFallbackTrack(token);
+        if (!result || token !== this.renderToken || !this.started) return false;
         this.view.setOffset(this.offsetMs, this.offsetHistory.length > 0);
         this.view.setEnabled(this.enabled);
         this.view.setStatus(
@@ -1111,6 +1115,58 @@
         this.view.setStatus('全屏字幕显示失败', 'error');
         return false;
       }
+    }
+
+    /*
+     * Rebuild the native fallback track from the current offset/appearance.
+     * It is pre-built while the overlay is visible (so entering video-element
+     * fullscreen needs no late work) and rebuilt when an offset or appearance
+     * change happens mid-fullscreen, so the visible text never goes stale.
+     */
+    renderAssFallbackTrack() {
+      if (!this.started || !this.isAssDocument() || !this.selectedVideo) {
+        return this.assFallbackTrackChain || Promise.resolve();
+      }
+      const fullscreen =
+        document.fullscreenElement || document.webkitFullscreenElement || null;
+      if (fullscreen && !this.assFallbackActive && !this.isAssOverlayBlocked()) {
+        // Container fullscreen keeps the styled overlay; nothing to prepare.
+        return Promise.resolve(null);
+      }
+      const token = this.renderToken;
+      this.assFallbackTrackChain = (this.assFallbackTrackChain || Promise.resolve())
+        .catch(function () {})
+        .then(async () => {
+          if (!this.started || !this.isAssDocument() || !this.selectedVideo) {
+            return null;
+          }
+          // A newer rebuild (tracked by token) supersedes this one.
+          if (this.assFallbackActive && token !== this.renderToken) return null;
+          return this.showAssFallbackTrack(this.renderToken);
+        });
+      return this.assFallbackTrackChain;
+    }
+
+    async showAssFallbackTrack(token) {
+      const generated = this.subtitleDoc.toFallbackVtt(this.offsetMs, {
+        linePercent: this.appearance.position
+      });
+      // Mutating native cues in place (same times, different text) is not
+      // spec-safe across browsers, so a new track always replaces the old one.
+      // The replacement is done before the tick that would show stale text.
+      const result = await this.trackController.show(generated.vtt, {
+        label: '本地字幕（全屏简略）',
+        enabled: this.enabled,
+        lineManaged: generated.lineManaged
+      });
+      if (token !== this.renderToken || !this.started) {
+        // Superseded mid-flight: a later queued rebuild will finish the job.
+        return null;
+      }
+      this.lastShift = generated.shift;
+      this.trackController.setLinePosition(this.appearance.position);
+      this.cueStyle.attach(this.selectedVideo);
+      return result;
     }
 
     _onFullscreenChange() {
@@ -1201,7 +1257,22 @@
           : this.assStatus(),
         this.enabled ? 'ok' : 'idle'
       );
+      // Pre-build the fullscreen fallback while still inline, so a
+      // video-element fullscreen does not need a track swap to show text.
+      this.prepareAssFallbackTrack();
       return true;
+    }
+
+    /*
+     * Build the native fallback track out of band. Entering video-element
+     * fullscreen is instant afterwards; this render is also what runs after
+     * every offset/appearance change made while inline.
+     */
+    prepareAssFallbackTrack() {
+      if (!this.started || !this.subtitleDoc || !this.selectedVideo) {
+        return Promise.resolve(null);
+      }
+      return this.renderAssFallbackTrack();
     }
 
     assStatus() {
@@ -1791,7 +1862,11 @@
       this.offsetMs = normalized;
       this.view.setOffset(this.offsetMs, this.offsetHistory.length > 0);
 
-      if (this.selectedVideo) {
+      if (this.isAssDocument() && this.assFallbackActive) {
+        // The styled overlay is hidden, so the native cue text must carry the
+        // new timing itself; otherwise fullscreen would show the old offset.
+        this.scheduleAssFallbackTrack();
+      } else if (this.selectedVideo) {
         void this.renderSubtitle('正在应用时间偏移…');
       } else {
         this.view.setStatus(
@@ -1816,7 +1891,9 @@
       if (!this.offsetHistory.length || !this.subtitleDoc) return;
       this.offsetMs = this.offsetHistory.pop();
       this.view.setOffset(this.offsetMs, this.offsetHistory.length > 0);
-      if (this.selectedVideo) {
+      if (this.isAssDocument() && this.assFallbackActive) {
+        this.scheduleAssFallbackTrack();
+      } else if (this.selectedVideo) {
         void this.renderSubtitle('正在撤销时间偏移…');
       } else {
         this.view.setStatus(
@@ -1845,7 +1922,9 @@
       }
       this.offsetMs = 0;
       this.view.setOffset(0, this.offsetHistory.length > 0);
-      if (this.selectedVideo) {
+      if (this.isAssDocument() && this.assFallbackActive) {
+        this.scheduleAssFallbackTrack();
+      } else if (this.selectedVideo) {
         void this.renderSubtitle('正在恢复原始时间轴…');
       } else {
         this.view.setStatus('已恢复原始时间轴，等待视频。', 'warn');
