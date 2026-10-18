@@ -1068,9 +1068,8 @@
      * stays visible. ASS layout, colours and \pos are lost until the user leaves
      * fullscreen, where renderAssSubtitle takes over again.
      *
-     * The native track is pre-built while the overlay is still visible (the
-     * overlay sits on top and wins anyway), so entering video-element fullscreen
-     * needs no work at all and cannot show the previous offset.
+     * The native track is pre-built but kept disabled while the styled overlay
+     * is visible, so entering video-element fullscreen needs no track swap.
      */
     async renderAssNativeFallback(reason) {
       this.clearError();
@@ -1094,7 +1093,26 @@
       this.view.setStatus(reason || '正在切换全屏字幕…', 'busy');
 
       const token = ++this.renderToken;
+      const readyFallback =
+        this.trackController.active &&
+        this.trackController.active.label === '本地字幕（全屏简略）';
       try {
+        if (readyFallback) {
+          // The inline pre-build is already loaded but disabled. Switching its
+          // mode is synchronous and avoids swapping tracks during fullscreen.
+          this.trackController.setEnabled(this.enabled);
+          this.view.setOffset(this.offsetMs, this.offsetHistory.length > 0);
+          this.view.setEnabled(this.enabled);
+          this.view.setStatus(
+            this.enabled
+              ? '全屏中：ASS 字幕以纯文本显示（退出全屏恢复样式）。共 ' +
+                  this.trackController.cueCount +
+                  ' 条。'
+              : 'ASS 字幕已加载，显示已关闭。',
+            this.enabled ? 'warn' : 'idle'
+          );
+          return true;
+        }
         const result = await this.showAssFallbackTrack(token);
         if (!result || token !== this.renderToken || !this.started) return false;
         this.view.setOffset(this.offsetMs, this.offsetHistory.length > 0);
@@ -1124,7 +1142,13 @@
      * change happens mid-fullscreen, so the visible text never goes stale.
      */
     renderAssFallbackTrack() {
-      if (!this.started || !this.isAssDocument() || !this.selectedVideo) {
+      if (
+        !this.started ||
+        !this.isAssDocument() ||
+        !this.selectedVideo ||
+        !this.trackController ||
+        this.trackController.video !== this.selectedVideo
+      ) {
         return this.assFallbackTrackChain || Promise.resolve();
       }
       const fullscreen =
@@ -1134,15 +1158,41 @@
         return Promise.resolve(null);
       }
       const token = this.renderToken;
+      const controller = this.trackController;
       this.assFallbackTrackChain = (this.assFallbackTrackChain || Promise.resolve())
         .catch(function () {})
         .then(async () => {
-          if (!this.started || !this.isAssDocument() || !this.selectedVideo) {
+          if (
+            !this.started ||
+            !this.isAssDocument() ||
+            !this.selectedVideo ||
+            this.trackController !== controller ||
+            this.selectedVideo !== controller.video ||
+            token !== this.renderToken
+          ) {
             return null;
           }
-          // A newer rebuild (tracked by token) supersedes this one.
-          if (this.assFallbackActive && token !== this.renderToken) return null;
-          return this.showAssFallbackTrack(this.renderToken);
+          return this.showAssFallbackTrack(token);
+        })
+        .catch((error) => {
+          // Inline pre-build failures are harmless because the styled ASS
+          // overlay remains visible. Report failures only when the native
+          // fallback is the active renderer.
+          if (
+            this.started &&
+            this.assFallbackActive &&
+            token === this.renderToken &&
+            this.trackController === controller
+          ) {
+            if (controller.active && controller.active.track) {
+              controller.active.track.mode = 'disabled';
+            }
+            this.showError(error, () =>
+              this.renderSubtitle('正在重试加载字幕…')
+            );
+            this.view.setStatus('全屏字幕更新失败', 'error');
+          }
+          return null;
         });
       return this.assFallbackTrackChain;
     }
@@ -1156,7 +1206,8 @@
       // The replacement is done before the tick that would show stale text.
       const result = await this.trackController.show(generated.vtt, {
         label: '本地字幕（全屏简略）',
-        enabled: this.enabled,
+        // Keep the pre-built native track silent under the styled overlay.
+        enabled: this.assFallbackActive && this.enabled,
         lineManaged: generated.lineManaged
       });
       if (token !== this.renderToken || !this.started) {
@@ -1257,6 +1308,13 @@
           : this.assStatus(),
         this.enabled ? 'ok' : 'idle'
       );
+      if (
+        !this.trackController ||
+        this.trackController.video !== this.selectedVideo
+      ) {
+        if (this.trackController) this.trackController.destroy();
+        this.createTrackController();
+      }
       // Pre-build the fullscreen fallback while still inline, so a
       // video-element fullscreen does not need a track swap to show text.
       this.prepareAssFallbackTrack();
@@ -1984,7 +2042,11 @@
     setEnabled(enabled) {
       this.enabled = Boolean(enabled);
       if (this.trackController) {
-        this.trackController.setEnabled(this.enabled);
+        this.trackController.setEnabled(
+          this.isAssDocument() && !this.assFallbackActive
+            ? false
+            : this.enabled
+        );
       }
       if (this.assOverlay) {
         this.assOverlay.setEnabled(this.enabled);
