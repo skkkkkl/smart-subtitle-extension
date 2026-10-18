@@ -33,6 +33,14 @@ fs.copyFileSync(
 const manifest = JSON.parse(
   fs.readFileSync(path.join(out, 'manifest.json'), 'utf8')
 );
+if (process.env.FIREFOX_ADDON_ID) {
+  manifest.browser_specific_settings.gecko.id = process.env.FIREFOX_ADDON_ID;
+  fs.writeFileSync(
+    path.join(out, 'manifest.json'),
+    JSON.stringify(manifest, null, 2) + '\n',
+    'utf8'
+  );
+}
 if (manifest.manifest_version !== 2) {
   throw new Error('Firefox build must stay on Manifest V2 for Android support.');
 }

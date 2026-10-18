@@ -2,7 +2,7 @@
   "manifest_version": 2,
   "name": "本地字幕助手",
   "short_name": "本地字幕",
-  "version": "0.12.2",
+  "version": "0.12.3",
   "description": "在网页 HTML5 视频上加载 SRT/VTT/ASS 字幕，调整时间轴和字幕外观；默认本地处理。",
   "permissions": [
     "activeTab",

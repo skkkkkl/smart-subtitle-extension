@@ -95,6 +95,8 @@
       this.anchorSelected = null;
       this.audioCalibrator = null;
       this.audioCalibratorBusy = false;
+      this.assMutedTracks = null;
+      this.assTrackListener = null;
 
       this.settingsStore = new SettingsStore();
       this.settings = SettingsModel.createDefaultSettings();
@@ -280,6 +282,7 @@
         this.trackController.setLinePosition(this.appearance.position);
       }
       if (this.view) this.view.setAppearance(this.appearance);
+      if (this.subtitleDoc) this.refreshSubtitleCard();
       if (options && options.persist) {
         this.persistSettings();
       }
@@ -994,6 +997,7 @@
         this.trackController = null;
       }
       this.cueStyle.detach();
+      this.mutePageTracks();
       if (!this.assOverlay || this.assOverlay.video !== this.selectedVideo) {
         this.detachAssOverlay();
         this.assOverlay = new AssOverlay(this.selectedVideo, {
@@ -1671,6 +1675,10 @@
       if (this.assOverlay) {
         this.assOverlay.setEnabled(this.enabled);
       }
+      if (this.isAssDocument && this.isAssDocument()) {
+        if (this.enabled) this.mutePageTracks();
+        else this.restorePageTracks();
+      }
       this.view.setEnabled(this.enabled);
 
       if (!this.subtitleDoc) {
@@ -1713,7 +1721,31 @@
       });
     }
 
+    mutePageTracks() {
+      if (!this.selectedVideo || !this.selectedVideo.textTracks) return;
+      if (this.assMutedTracks) return;
+      this.assMutedTracks = new Map();
+      for (const track of Array.from(this.selectedVideo.textTracks)) {
+        this.assMutedTracks.set(track, track.mode);
+        track.mode = 'disabled';
+      }
+    }
+
+    restorePageTracks() {
+      if (!this.assMutedTracks) return;
+      for (const [track, mode] of this.assMutedTracks) {
+        try {
+          if (track && track.mode === 'disabled') track.mode = mode;
+        } catch (error) {
+          // The page may have removed the track.
+        }
+      }
+      this.assMutedTracks = null;
+      this.assTrackListener = null;
+    }
+
     detachAssOverlay() {
+      this.restorePageTracks();
       if (this.assOverlay) {
         this.assOverlay.destroy();
         this.assOverlay = null;
@@ -1744,7 +1776,9 @@
         if (this.warnings.length > 1) warningText += ' 等';
       }
       if (this.isAssDocument()) {
-        const note = 'ASS/SSA 使用文件内样式；外观面板的字体/描边/位置不应用于 ASS。';
+        const note = this.appearance.overrideAss
+          ? 'ASS 外观覆盖已开启。'
+          : 'ASS/SSA 使用文件内样式；如需调整，请在外观中勾选「应用到 ASS 字幕」。';
         warningText = warningText ? warningText + ' · ' + note : note;
       }
       this.view.setSubtitleInfo({

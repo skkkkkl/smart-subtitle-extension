@@ -1312,7 +1312,7 @@
         </div>
 
         <footer>
-          <span>v0.12.2 · SRT / VTT / ASS</span>
+          <span>v0.12.3 · SRT / VTT / ASS</span>
           <span>在线搜索可选 · 自动分析</span>
         </footer>
       </div>
