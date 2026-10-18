@@ -50,7 +50,7 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "smart-subtitle-android@skkkkkl.github.io",
+      "id": "smart-subtitle-mobile@skkkkkl.github.io",
       "strict_min_version": "142.0",
       "data_collection_permissions": {
         "required": [
