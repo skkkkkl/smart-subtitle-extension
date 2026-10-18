@@ -267,9 +267,9 @@
       const scaleY = rect.height / playResY;
       const appearance = this.appearance;
       const override = Boolean(appearance && appearance.overrideAss);
-      const fontScale = override
-        ? clamp(appearance.fontSize / 24, 0.4, 3)
-        : 1;
+      const overrideFontPx = override
+        ? Math.max(8, appearance.fontSize * (rect.height / 1080))
+        : 0;
       const alignment = clamp(
         parsed.alignment || style.alignment || 2,
         1,
@@ -347,7 +347,10 @@
         span.textContent = segment.text;
         span.style.color = override ? appearance.color : segment.color;
         span.style.fontSize =
-          Math.max(7, segment.fontSize * scaleY * fontScale) + 'px';
+          Math.max(
+            7,
+            override ? overrideFontPx : segment.fontSize * scaleY
+          ) + 'px';
         span.style.fontWeight = override
           ? String(appearance.fontWeight)
           : segment.bold

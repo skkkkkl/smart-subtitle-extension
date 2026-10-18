@@ -122,6 +122,68 @@
       }
       .body::-webkit-scrollbar { width: 8px; }
       .body::-webkit-scrollbar-thumb { background: #39424e; border-radius: 99px; border: 2px solid transparent; background-clip: padding-box; }
+      .tab-nav {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 4px;
+        margin: 0 0 10px;
+        padding: 4px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: rgba(0,0,0,.18);
+      }
+      .tab-nav button {
+        height: 30px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: #85939c;
+        font-size: 10px;
+        cursor: pointer;
+      }
+      .tab-nav button:hover { color: #dbe5e8; }
+      .tab-nav button.active {
+        background: var(--bg-raised);
+        color: var(--accent);
+        font-weight: 700;
+      }
+      .page-hidden { display: none !important; }
+      .font-quick {
+        margin-bottom: 12px;
+        padding: 12px;
+        border: 1px solid rgba(94,234,212,.28);
+        border-radius: 10px;
+        background: linear-gradient(145deg, rgba(94,234,212,.10), rgba(94,234,212,.025));
+      }
+      .font-quick-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .font-quick-head h2 { margin: 0; font-size: 11px; color: #dbe5e8; letter-spacing: .06em; }
+      .font-quick-head output {
+        color: var(--accent);
+        font: 700 24px/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+      }
+      .font-quick-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .font-quick-row button {
+        flex: 0 0 34px;
+        height: 34px;
+        border: 1px solid var(--line-strong);
+        border-radius: 8px;
+        background: var(--bg-raised);
+        color: var(--accent);
+        font-size: 18px;
+        cursor: pointer;
+      }
+      .font-quick-row input[type="range"] { flex: 1; accent-color: var(--accent); }
+      .font-quick-note { margin: 9px 0 0; color: #8f9da5; font-size: 9px; line-height: 1.45; }
       .section {
         padding: 13px 14px;
         border-bottom: 1px solid var(--line);
@@ -1008,7 +1070,14 @@
           <p class="movie-info is-hidden" data-role="movie-info"></p>
         </section>
 
-        <details class="section match-details" data-role="match-details">
+        <nav class="tab-nav" data-role="tab-nav" aria-label="面板页面">
+          <button type="button" class="active" data-action="tab" data-tab="subtitle">字幕</button>
+          <button type="button" data-action="tab" data-tab="sync">同步</button>
+          <button type="button" data-action="tab" data-tab="style">外观</button>
+          <button type="button" data-action="tab" data-tab="search">搜索</button>
+        </nav>
+
+        <details class="section match-details" data-role="match-details" data-page="search">
           <summary>
             <span>字幕匹配</span>
             <span class="appearance-summary-hint">本地候选 · 评分</span>
@@ -1052,7 +1121,7 @@
           </div>
         </details>
 
-        <section class="section">
+        <section class="section" data-page="subtitle">
           <button class="primary-btn" type="button" data-action="choose-file">
             <span class="plus" aria-hidden="true">＋</span>
             选择 SRT / VTT / ASS 字幕
@@ -1061,7 +1130,7 @@
           <p class="hint">文件只在当前页面本地解析，不上传字幕或视频。</p>
         </section>
 
-        <section class="section subtitle-section is-hidden" data-role="subtitle-section">
+        <section class="section subtitle-section is-hidden" data-role="subtitle-section" data-page="subtitle">
           <div class="section-head">
             <h2>当前字幕</h2>
             <span class="tag" data-role="format-tag">SRT</span>
@@ -1078,7 +1147,7 @@
           </div>
         </section>
 
-        <section class="section">
+        <section class="section" data-page="subtitle">
           <div class="section-head">
             <h2>时间偏移</h2>
             <output class="offset-value" data-role="offset-label">0 ms</output>
@@ -1103,6 +1172,13 @@
             <button type="button" data-action="reset-offset">归零</button>
           </div>
           <p class="hint">正数延迟字幕，负数提前字幕；归零可恢复原始时间轴。</p>
+        </section>
+
+        <section class="section" data-page="sync">
+          <div class="section-head">
+            <h2>同步工具</h2>
+            <span class="appearance-summary-hint">首句 / 台词 / 音频</span>
+          </div>
           <div class="auto-estimate">
             <div class="auto-estimate-head">
               <strong>自动分析</strong>
@@ -1153,7 +1229,24 @@
           </div>
         </section>
 
-        <details class="section appearance-details" data-role="appearance-details">
+        <section class="section" data-page="style">
+          <div class="font-quick">
+            <div class="font-quick-head">
+              <h2>字幕字号</h2>
+              <output data-role="font-size-out">24px</output>
+            </div>
+            <div class="font-quick-row">
+              <button type="button" data-action="font-step" data-delta="-1" aria-label="减小字号">−</button>
+              <input id="ss-font-size" data-role="font-size" type="range" min="10" max="48" step="1" value="24" aria-label="字幕字号">
+              <button type="button" data-action="font-step" data-delta="1" aria-label="增大字号">＋</button>
+            </div>
+            <label class="ass-override">
+              <input data-role="override-ass" type="checkbox">
+              <span>应用到 ASS 字幕</span>
+            </label>
+            <p class="font-quick-note">勾选后，字号、颜色、描边、阴影和位置会覆盖 ASS 文件样式。</p>
+          </div>
+          <details class="section appearance-details" data-role="appearance-details">
           <summary>
             <span>字幕外观</span>
             <span class="appearance-summary-hint">字号 / 字重 / 描边 / 阴影 / 位置</span>
@@ -1165,13 +1258,6 @@
             </div>
 
             <div class="appearance-grid">
-              <div class="appearance-field">
-                <div class="appearance-field-head">
-                  <label for="ss-font-size">字号</label>
-                  <output data-role="font-size-out">24px</output>
-                </div>
-                <input id="ss-font-size" data-role="font-size" type="range" min="14" max="48" step="1" value="24" aria-label="字幕字号">
-              </div>
               <div class="appearance-field">
                 <div class="appearance-field-head"><label for="ss-font-weight">字重</label></div>
                 <select id="ss-font-weight" class="appearance-select" data-role="font-weight" aria-label="字幕字重">
@@ -1269,11 +1355,6 @@
               </div>
             </div>
 
-            <label class="ass-override">
-              <input data-role="override-ass" type="checkbox">
-              <span>应用到 ASS 字幕</span>
-            </label>
-            <p class="appearance-note">开启后，字号、颜色、描边、阴影和纵向位置会覆盖 ASS 文件样式。</p>
             <div class="appearance-actions">
               <button type="button" data-action="reset-appearance">恢复默认外观</button>
               <button class="accent" type="button" data-action="open-options">更多设置</button>
@@ -1281,6 +1362,7 @@
             <p class="appearance-note">外观设置保存在本机；阴影和描边都由原生 cue 样式实现。</p>
           </div>
         </details>
+        </section>
 
         <section class="section toggle-section">
           <label class="switch-row">
@@ -1312,7 +1394,7 @@
         </div>
 
         <footer>
-          <span>v0.12.3 · SRT / VTT / ASS</span>
+          <span>v0.13.0 · SRT / VTT / ASS</span>
           <span>在线搜索可选 · 自动分析</span>
         </footer>
       </div>
@@ -1343,6 +1425,7 @@
       this._onAppearanceCommit = this._onAppearanceCommit.bind(this);
       this._onCandidateFilesChange = this._onCandidateFilesChange.bind(this);
       this._onMatchQueryChange = this._onMatchQueryChange.bind(this);
+      this.activeTab = 'subtitle';
       this._matchRoles = ['match-title', 'match-year', 'match-language'];
       this._appearanceRoles = [
         'font-size',
@@ -1444,6 +1527,26 @@
       root.addEventListener('resize', this._onViewportResize, { passive: true });
       document.addEventListener('fullscreenchange', this._onFullscreenChange);
       this._mounted = true;
+      this.setTab('subtitle');
+    }
+
+    setTab(name) {
+      const next = ['subtitle', 'sync', 'style', 'search'].includes(name)
+        ? name
+        : 'subtitle';
+      this.activeTab = next;
+      for (const button of this.shadow.querySelectorAll('[data-action="tab"]')) {
+        button.classList.toggle(
+          'active',
+          button.getAttribute('data-tab') === next
+        );
+      }
+      for (const section of this.shadow.querySelectorAll('[data-page]')) {
+        section.classList.toggle(
+          'page-hidden',
+          section.getAttribute('data-page') !== next
+        );
+      }
     }
 
     _appendHost() {
@@ -1599,6 +1702,16 @@
         case 'manual-first-line':
           if (this.callbacks.onManualFirstLine) this.callbacks.onManualFirstLine();
           break;
+        case 'tab':
+          this.setTab(target.getAttribute('data-tab'));
+          break;
+        case 'font-step': {
+          const delta = Number(target.getAttribute('data-delta'));
+          if (Number.isInteger(delta) && this.callbacks.onFontStep) {
+            this.callbacks.onFontStep(delta);
+          }
+          break;
+        }
         case 'reset-appearance':
           if (this.callbacks.onResetAppearance) {
             this.callbacks.onResetAppearance();

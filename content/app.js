@@ -190,6 +190,9 @@
         onAppearanceChange: (appearance) => {
           this.updateAppearance(appearance);
         },
+        onFontStep: (delta) => {
+          this.stepFontSize(delta);
+        },
         onPositionPreview: (position) => {
           this.previewPosition(position);
         },
@@ -309,6 +312,14 @@
           }
         });
       return this.settingsSaveChain;
+    }
+
+    stepFontSize(delta) {
+      const value = Math.max(
+        10,
+        Math.min(48, this.appearance.fontSize + (Number(delta) || 0))
+      );
+      this.updateAppearance({ fontSize: value });
     }
 
     updateAppearance(patch) {
@@ -1050,6 +1061,13 @@
           : '偏移 ' + OffsetModel.formatOffset(this.offsetMs)
       );
       parts.push(this.subtitleDoc.cueCount + ' 条');
+      const pageTracks =
+        this.selectedVideo && this.selectedVideo.textTracks
+          ? this.selectedVideo.textTracks.length
+          : 0;
+      if (pageTracks > 0) {
+        parts.push('站内字幕 ' + pageTracks + ' 条已静音');
+      }
       if (this.lastShift && this.lastShift.dropped > 0) {
         parts.push('移出 ' + this.lastShift.dropped + ' 条');
       }
@@ -1778,7 +1796,7 @@
       if (this.isAssDocument()) {
         const note = this.appearance.overrideAss
           ? 'ASS 外观覆盖已开启。'
-          : 'ASS/SSA 使用文件内样式；如需调整，请在外观中勾选「应用到 ASS 字幕」。';
+          : 'ASS/SSA 使用文件内样式；如需调整，请在外观页勾选「应用到 ASS 字幕」。';
         warningText = warningText ? warningText + ' · ' + note : note;
       }
       this.view.setSubtitleInfo({

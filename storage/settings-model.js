@@ -98,7 +98,7 @@
     return {
       fontSize: numberInRange(
         input.fontSize,
-        14,
+        10,
         48,
         DEFAULT_APPEARANCE.fontSize,
         true
