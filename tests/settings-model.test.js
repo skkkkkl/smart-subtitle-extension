@@ -13,6 +13,7 @@ test('default settings are local appearance values only', () => {
   assert.equal(settings.appearance.fontWeight, 600);
   assert.equal(settings.appearance.shadowEnabled, true);
   assert.equal(settings.appearance.shadowBlur, 4);
+  assert.equal(settings.appearance.overrideAss, false);
 });
 
 test('sanitizeAppearance clamps numbers and normalizes colors', () => {
@@ -32,6 +33,7 @@ test('sanitizeAppearance clamps numbers and normalizes colors', () => {
   assert.equal(appearance.backgroundColor, '#112233');
   assert.equal(appearance.backgroundOpacity, 0.95);
   assert.equal(appearance.position, 60);
+  assert.equal(SettingsModel.sanitizeAppearance({ overrideAss: 1 }).overrideAss, true);
   assert.equal(
     SettingsModel.sanitizeAppearance({ outlineWidth: 2.3 }).outlineWidth,
     2.5

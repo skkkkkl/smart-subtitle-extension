@@ -30,7 +30,8 @@
     shadowOpacity: 0.55,
     shadowBlur: 4,
     shadowOffsetX: 0,
-    shadowOffsetY: 2
+    shadowOffsetY: 2,
+    overrideAss: false
   });
 
   function cloneAppearance(appearance) {
@@ -48,7 +49,8 @@
       shadowOpacity: appearance.shadowOpacity,
       shadowBlur: appearance.shadowBlur,
       shadowOffsetX: appearance.shadowOffsetX,
-      shadowOffsetY: appearance.shadowOffsetY
+      shadowOffsetY: appearance.shadowOffsetY,
+      overrideAss: Boolean(appearance.overrideAss)
     };
   }
 
@@ -174,7 +176,11 @@
         16,
         DEFAULT_APPEARANCE.shadowOffsetY,
         true
-      )
+      ),
+      overrideAss:
+        input.overrideAss === undefined
+          ? DEFAULT_APPEARANCE.overrideAss
+          : Boolean(input.overrideAss)
     };
   }
 

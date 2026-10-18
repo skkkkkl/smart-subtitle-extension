@@ -9,7 +9,7 @@
   'use strict';
 
   var NS = root.SmartSubtitle = root.SmartSubtitle || {};
-  NS.VERSION = '0.12.0';
+  NS.VERSION = '0.12.2';
   NS.subtitles = NS.subtitles || {};
   NS.alignment = NS.alignment || {};
   NS.storage = NS.storage || {};

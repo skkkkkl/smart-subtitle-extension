@@ -42,6 +42,27 @@
     });
   }
 
+  function hexToRgba(hex, opacity) {
+    const value = String(hex || '#000000').replace('#', '');
+    const normalized =
+      value.length === 3
+        ? value[0] + value[0] + value[1] + value[1] + value[2] + value[2]
+        : value.padEnd(6, '0').slice(0, 6);
+    const number = parseInt(normalized, 16);
+    if (!Number.isFinite(number)) return 'rgba(0,0,0,' + opacity + ')';
+    return (
+      'rgba(' +
+      ((number >> 16) & 255) +
+      ',' +
+      ((number >> 8) & 255) +
+      ',' +
+      (number & 255) +
+      ',' +
+      opacity +
+      ')'
+    );
+  }
+
   class AssOverlay {
     constructor(video, options) {
       this.video = video;
@@ -54,7 +75,14 @@
       this.layer = null;
       this.frame = null;
       this.lastKey = '';
+      this.appearance = this.options.appearance || null;
       this._tick = this._tick.bind(this);
+      this._onFullscreenChange = this._onFullscreenChange.bind(this);
+      document.addEventListener('fullscreenchange', this._onFullscreenChange);
+      document.addEventListener(
+        'webkitfullscreenchange',
+        this._onFullscreenChange
+      );
       this._ensureHost();
       this._start();
     }
@@ -80,7 +108,32 @@
       this.layer.className = 'layer';
       this.shadow.appendChild(style);
       this.shadow.appendChild(this.layer);
-      document.documentElement.appendChild(this.host);
+      this._syncHostParent();
+    }
+
+    _syncHostParent() {
+      if (!this.host) return;
+      const fullscreen =
+        document.fullscreenElement || document.webkitFullscreenElement || null;
+      let target = document.documentElement;
+      if (
+        fullscreen &&
+        fullscreen !== this.video &&
+        fullscreen.contains(this.video)
+      ) {
+        target = fullscreen;
+      }
+      if (this.host.parentNode !== target) target.appendChild(this.host);
+      this.lastKey = '';
+    }
+
+    _onFullscreenChange() {
+      this._syncHostParent();
+    }
+
+    setAppearance(appearance) {
+      this.appearance = appearance || null;
+      this.lastKey = '';
     }
 
     _start() {
@@ -166,6 +219,7 @@
 
     _renderFrame() {
       if (!this.host || !this.video) return;
+      this._syncHostParent();
       if (!this.enabled || !this.doc || !this.video.isConnected) {
         this._applyVisibility();
         return;
@@ -211,6 +265,11 @@
       const playResY = info.playResY > 0 ? info.playResY : 288;
       const scaleX = rect.width / playResX;
       const scaleY = rect.height / playResY;
+      const appearance = this.appearance;
+      const override = Boolean(appearance && appearance.overrideAss);
+      const fontScale = override
+        ? clamp(appearance.fontSize / 24, 0.4, 3)
+        : 1;
       const alignment = clamp(
         parsed.alignment || style.alignment || 2,
         1,
@@ -232,7 +291,16 @@
       let transformX = '0';
       let transformY = '0';
 
-      if (parsed.position) {
+      if (override) {
+        element.style.left = '50%';
+        element.style.right = 'auto';
+        element.style.top = 'auto';
+        element.style.bottom =
+          Math.max(0, Math.min(40, 100 - appearance.position)) + '%';
+        element.style.textAlign = 'center';
+        transformX = '-50%';
+        transformY = '0';
+      } else if (parsed.position) {
         element.style.left = parsed.position.x * scaleX + 'px';
         element.style.top = parsed.position.y * scaleY + 'px';
         transformX =
@@ -258,7 +326,16 @@
       }
       element.style.transform =
         'translate(' + transformX + ', ' + transformY + ')';
-      if (style.borderStyle === 3 && style.backColor) {
+      if (override) {
+        if (appearance.backgroundOpacity > 0) {
+          element.style.background = hexToRgba(
+            appearance.backgroundColor,
+            appearance.backgroundOpacity
+          );
+          element.style.padding =
+            Math.max(1, appearance.outlineWidth) + 'px 5px';
+        }
+      } else if (style.borderStyle === 3 && style.backColor) {
         element.style.background = style.backColor;
         element.style.padding =
           Math.max(1, style.outline * 0.5 * scaleY) + 'px ' + 4 + 'px';
@@ -268,16 +345,35 @@
         if (!segment.text) continue;
         const span = document.createElement('span');
         span.textContent = segment.text;
-        span.style.color = segment.color;
+        span.style.color = override ? appearance.color : segment.color;
         span.style.fontSize =
-          Math.max(7, segment.fontSize * scaleY) + 'px';
-        span.style.fontWeight = segment.bold ? '700' : '400';
+          Math.max(7, segment.fontSize * scaleY * fontScale) + 'px';
+        span.style.fontWeight = override
+          ? String(appearance.fontWeight)
+          : segment.bold
+            ? '700'
+            : '400';
         span.style.fontStyle = segment.italic ? 'italic' : 'normal';
-        const shadows = outlineShadow(
-          segment.outline * scaleY,
-          segment.outlineColor
-        );
-        if (segment.shadow > 0) {
+        const outlineWidth = override
+          ? appearance.outlineWidth
+          : segment.outline * scaleY;
+        const outlineColor = override
+          ? appearance.outlineColor
+          : segment.outlineColor;
+        const shadows = outlineShadow(outlineWidth, outlineColor);
+        if (override) {
+          if (appearance.shadowEnabled) {
+            shadows.push(
+              appearance.shadowOffsetX +
+                'px ' +
+                appearance.shadowOffsetY +
+                'px ' +
+                appearance.shadowBlur +
+                'px ' +
+                hexToRgba(appearance.shadowColor, appearance.shadowOpacity)
+            );
+          }
+        } else if (segment.shadow > 0) {
           shadows.push(
             segment.shadow * scaleY +
               'px ' +
@@ -294,6 +390,11 @@
 
     destroy() {
       this._stop();
+      document.removeEventListener('fullscreenchange', this._onFullscreenChange);
+      document.removeEventListener(
+        'webkitfullscreenchange',
+        this._onFullscreenChange
+      );
       this.doc = null;
       if (this.host && this.host.parentNode) {
         this.host.parentNode.removeChild(this.host);

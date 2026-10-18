@@ -273,6 +273,9 @@
       this.settings = next;
       this.appearance = next.appearance;
       this.cueStyle.setAppearance(this.appearance);
+      if (this.assOverlay) {
+        this.assOverlay.setAppearance(this.appearance);
+      }
       if (this.trackController) {
         this.trackController.setLinePosition(this.appearance.position);
       }

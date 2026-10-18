@@ -681,6 +681,16 @@
       .shadow-panel.is-disabled input[disabled] {
         cursor: not-allowed;
       }
+      .ass-override {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin-top: 12px;
+        color: #c6d3d6;
+        font-size: 10.5px;
+        cursor: pointer;
+      }
+      .ass-override input { accent-color: var(--accent); }
       .appearance-actions {
         display: flex;
         gap: 8px;
@@ -1259,6 +1269,11 @@
               </div>
             </div>
 
+            <label class="ass-override">
+              <input data-role="override-ass" type="checkbox">
+              <span>应用到 ASS 字幕</span>
+            </label>
+            <p class="appearance-note">开启后，字号、颜色、描边、阴影和纵向位置会覆盖 ASS 文件样式。</p>
             <div class="appearance-actions">
               <button type="button" data-action="reset-appearance">恢复默认外观</button>
               <button class="accent" type="button" data-action="open-options">更多设置</button>
@@ -1297,7 +1312,7 @@
         </div>
 
         <footer>
-          <span>v0.12.0 · SRT / VTT / ASS</span>
+          <span>v0.12.2 · SRT / VTT / ASS</span>
           <span>在线搜索可选 · 自动分析</span>
         </footer>
       </div>
@@ -1343,7 +1358,8 @@
         'shadow-opacity',
         'shadow-blur',
         'shadow-offset-x',
-        'shadow-offset-y'
+        'shadow-offset-y',
+        'override-ass'
       ];
     }
 
@@ -1801,7 +1817,10 @@
           : 0.55,
         shadowBlur: shadowBlur ? Number(shadowBlur.value) : 4,
         shadowOffsetX: shadowOffsetX ? Number(shadowOffsetX.value) : 0,
-        shadowOffsetY: shadowOffsetY ? Number(shadowOffsetY.value) : 2
+        shadowOffsetY: shadowOffsetY ? Number(shadowOffsetY.value) : 2,
+        overrideAss: Boolean(
+          this._q('override-ass') && this._q('override-ass').checked
+        )
       };
     }
 
@@ -1890,6 +1909,8 @@
       }
       const shadowEnabled = this._q('shadow-enabled');
       if (shadowEnabled) shadowEnabled.checked = value.shadowEnabled;
+      const overrideAss = this._q('override-ass');
+      if (overrideAss) overrideAss.checked = value.overrideAss;
       this._renderAppearancePreview(value);
     }
 

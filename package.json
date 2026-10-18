@@ -1,6 +1,6 @@
 {
   "name": "smart-subtitle-extension",
-  "version": "0.12.0",
+  "version": "0.12.2",
   "private": true,
   "description": "Local-first SRT/VTT/ASS subtitle extension for Chrome",
   "scripts": {
