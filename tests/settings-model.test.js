@@ -114,6 +114,25 @@ test('drop shadow is composed behind the outline and uses sanitized rgba', () =>
   assert.match(css, /font-weight: 600 !important/);
 });
 
+test('cue CSS can scale fullscreen text, outline and shadow together', () => {
+  const css = SettingsModel.buildCueCss({
+    fontSize: 24,
+    outlineWidth: 2,
+    outlineColor: '#001122',
+    shadowEnabled: true,
+    shadowColor: '#112233',
+    shadowOpacity: 0.5,
+    shadowBlur: 6,
+    shadowOffsetX: 3,
+    shadowOffsetY: -2
+  }, { fontScale: 1.5 });
+  const shadowPart = css.split('text-shadow: ')[1].split(' !important')[0];
+
+  assert.match(css, /font-size: 36px !important/);
+  assert.ok(shadowPart.includes('3px 0px 0.36px #001122'));
+  assert.ok(shadowPart.endsWith('4.5px -3px 9px rgba(17, 34, 51, 0.50)'));
+});
+
 test('outline width supports half-pixel values', () => {
   const css = SettingsModel.buildCueCss({
     outlineWidth: 0.5,

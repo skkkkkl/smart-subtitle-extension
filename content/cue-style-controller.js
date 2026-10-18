@@ -22,6 +22,7 @@
     constructor(options) {
       const opts = options || {};
       this.appearance = SettingsModel.sanitizeAppearance(opts.appearance);
+      this.fontScale = 1;
       this.video = null;
       this.sequence = 0;
       this.lastCss = '';
@@ -29,8 +30,12 @@
       this.chain = Promise.resolve();
     }
 
-    setAppearance(appearance) {
+    setAppearance(appearance, options) {
       this.appearance = SettingsModel.sanitizeAppearance(appearance);
+      const requestedScale = Number(options && options.fontScale);
+      this.fontScale = Number.isFinite(requestedScale)
+        ? Math.max(1, Math.min(2, requestedScale))
+        : 1;
       this.apply();
     }
 
@@ -54,13 +59,16 @@
         this.video.removeAttribute(CUE_ATTRIBUTE);
       }
       this.video = null;
+      this.fontScale = 1;
       this.apply();
     }
 
     apply() {
       const sequence = ++this.sequence;
       const css = this.video
-        ? SettingsModel.buildCueCss(this.appearance)
+        ? SettingsModel.buildCueCss(this.appearance, {
+            fontScale: this.fontScale
+          })
         : '';
       const previousCss = this.lastCss;
       this.lastCss = css;

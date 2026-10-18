@@ -48,6 +48,7 @@
 
   const MAX_FILE_BYTES = 8 * 1024 * 1024;
   const MAX_HISTORY = 50;
+  const ASS_FULLSCREEN_FONT_SCALE = 1.5;
 
   function trimForUi(text, maxLength) {
     const value = String(text || '');
@@ -295,7 +296,12 @@
       const next = SettingsModel.sanitizeSettings(settings);
       this.settings = next;
       this.appearance = next.appearance;
-      this.cueStyle.setAppearance(this.appearance);
+      this.cueStyle.setAppearance(this.appearance, {
+        fontScale:
+          this.assFallbackActive && this.isAssDocument()
+            ? ASS_FULLSCREEN_FONT_SCALE
+            : 1
+      });
       if (this.assOverlay) {
         this.assOverlay.setAppearance(this.appearance);
       }
@@ -1089,6 +1095,9 @@
       if (this.assOverlay) {
         this.assOverlay.setEnabled(false);
       }
+      this.cueStyle.setAppearance(this.appearance, {
+        fontScale: ASS_FULLSCREEN_FONT_SCALE
+      });
       this.mutePageTracks();
       this.view.setStatus(reason || '正在切换全屏字幕…', 'busy');
 

@@ -219,9 +219,10 @@
    * small blur to hide the polygon seams. The result is still plain text-shadow,
    * which is one of the ::cue properties Chrome actually supports.
    */
-  function buildTextShadow(appearance) {
+  function buildTextShadow(appearance, scale) {
     const shadows = [];
-    const width = Number(appearance.outlineWidth) || 0;
+    const shadowScale = Number.isFinite(scale) ? scale : 1;
+    const width = (Number(appearance.outlineWidth) || 0) * shadowScale;
     if (width > 0) {
       const color = appearance.outlineColor;
       const count = width >= 4 ? 32 : 24;
@@ -237,9 +238,9 @@
     }
 
     if (appearance.shadowEnabled !== false) {
-      const offsetX = Number(appearance.shadowOffsetX) || 0;
-      const offsetY = Number(appearance.shadowOffsetY) || 0;
-      const blur = Math.max(0, Number(appearance.shadowBlur) || 0);
+      const offsetX = (Number(appearance.shadowOffsetX) || 0) * shadowScale;
+      const offsetY = (Number(appearance.shadowOffsetY) || 0) * shadowScale;
+      const blur = Math.max(0, Number(appearance.shadowBlur) || 0) * shadowScale;
       const opacity = Number(appearance.shadowOpacity);
       if (blur > 0 || offsetX !== 0 || offsetY !== 0) {
         // Put the drop shadow after the outline ring so it sits behind the
@@ -257,13 +258,17 @@
     return shadows.length ? shadows.join(', ') : 'none';
   }
 
-  function buildCueCss(rawAppearance) {
+  function buildCueCss(rawAppearance, options) {
     const appearance = sanitizeAppearance(rawAppearance);
-    const shadow = buildTextShadow(appearance);
+    const requestedScale = Number(options && options.fontScale);
+    const scale = Number.isFinite(requestedScale)
+      ? Math.max(1, Math.min(2, requestedScale))
+      : 1;
+    const shadow = buildTextShadow(appearance, scale);
     return (
       'video[data-smart-subtitle-cue="true"]::cue {\n' +
       '  color: ' + appearance.color + ' !important;\n' +
-      '  font-size: ' + appearance.fontSize + 'px !important;\n' +
+      '  font-size: ' + (appearance.fontSize * scale) + 'px !important;\n' +
       '  font-weight: ' + appearance.fontWeight + ' !important;\n' +
       '  line-height: 1.4 !important;\n' +
       '  text-align: center !important;\n' +
