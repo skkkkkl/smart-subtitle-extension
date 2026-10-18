@@ -1,6 +1,6 @@
 {
   "name": "smart-subtitle-extension",
-  "version": "0.14.0",
+  "version": "0.14.1",
   "private": true,
   "description": "Local-first SRT/VTT/ASS subtitle extension for Chrome",
   "scripts": {
@@ -9,6 +9,8 @@
     "build:firefox": "node scripts/build-firefox.mjs",
     "lint:firefox": "web-ext lint --source-dir dist/firefox",
     "pack:firefox": "node scripts/pack-firefox.mjs",
+    "pack:chrome": "node scripts/pack-chromium.mjs",
+    "release:chrome": "node scripts/pack-chromium.mjs",
     "release:firefox": "node scripts/build-firefox.mjs && node scripts/pack-firefox.mjs"
   },
   "engines": {

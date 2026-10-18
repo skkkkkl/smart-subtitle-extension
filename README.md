@@ -2,7 +2,7 @@
 
 面向 Chrome 的本地优先字幕扩展。在网页 HTML5 视频上加载 SRT、VTT、ASS/SSA 字幕，实时调整时间轴和外观；字幕与媒体文件默认不离开本机。
 
-> 状态：`0.14.0`。桌面版支持 Chrome/Edge；Firefox Android 版使用独立构建。音频自动对齐仍为实验能力；推荐使用「首句对齐」或「台词锚点」完成可靠校准。
+> 状态：`0.14.1`。桌面版支持 Chrome/Edge；Firefox Android 版使用独立构建。音频自动对齐仍为实验能力；推荐使用「首句对齐」或「台词锚点」完成可靠校准。
 
 ## 功能
 
@@ -57,7 +57,7 @@ Android 版 Firefox **没有**桌面版那种「关闭签名校验」的开关�
 1. 打包：
    ```bash
    npm run release:firefox
-   # 输出：dist/smart-subtitle-firefox-mobile-0.14.0.zip
+   # 输出：dist/smart-subtitle-firefox-mobile-0.14.1.zip
    ```
 2. 登录 [addons.mozilla.org Developer Hub](https://addons.mozilla.org/developers/) → Submit a New Add-on → **选择「On your own」（unlisted）**。unlisted 不会出现在商店搜索结果里，只用于自己安装，仍需 Mozilla 的人工/自动审核（通常几分钟到一天）。
 3. 选 `dist/firefox/` 或上一步的 ZIP，提交后回到「My Add-ons」，在该版本上点 **Download file**，得到已签名的 `.xpi`。
@@ -84,9 +84,13 @@ WEB_EXT_API_KEY=user:xxxxx:yy WEB_EXT_API_SECRET=... npm run pack:firefox
 
 Kiwi 是基于 Chromium 的 Android 浏览器，保留桌面扩展支持，可以加载本项目的 Chrome 构建：
 
-1. 电脑上把仓库压缩成 ZIP（不要把 `node_modules/`、`dist/`、`.git/` 打进去，根目录必须直接是 `manifest.json`）；
-2. 传到手机，解压到内部存储的任意目录；
-3. Kiwi → 设置 → 扩展程序 → 打开「开发者模式」→「加载已解压的扩展程序」→ 选中该目录（部分版本提供「从文件安装」直接选 ZIP）。
+1. 打包（只含运行时文件，根目录直接是 `manifest.json`）：
+   ```bash
+   npm run pack:chrome
+   # 输出：dist/smart-subtitle-chrome-0.14.1.zip
+   ```
+2. 把 ZIP 传到手机，解压到内部存储的任意目录；
+3. Kiwi → 设置 → 扩展程序 → 打开「开发者模式」→「加载已解压的扩展程序」→ 选中解压出的目录（部分版本提供「从文件安装」直接选 ZIP）。
 
 `shared/capabilities.js` 会按运行时探测降级，手机 Chromium 上表现为：
 
@@ -154,8 +158,8 @@ Firefox Android 版：
 - ASS/SSA 是常用子集渲染，不支持 `\move`、`\t`、卡拉 OK、矢量绘图、复杂旋转/裁剪。
 - 自动时间轴仍为实验能力，不保证所有站点、所有片源可用。
 - iframe、Shadow DOM 内视频、Canvas/DRM 播放器不支持。
-- 播放器容器全屏时 ASS 字幕会跟随；若站点直接让 `<video>` 元素全屏，覆盖层可能无法显示。
-- 原生全屏时面板可能被排除在全屏层外。
+- 全屏：播放器容器全屏时 ASS 覆盖层跟随进入全屏层；站点直接让 `<video>` 元素全屏时（手机端常见），浏览器只渲染该元素自身，ASS 覆盖层无法绘制，扩展会自动切换为纯文本原生字幕（保留时间轴与对齐，丢失字体、颜色、`\pos` 定位），退出全屏后恢复完整样式。
+- 视频元素全屏时扩展面板不在全屏层内；此时点击工具栏图标会先退出全屏再显示面板。
 - OpenSubtitles 返回 ZIP 时不会自动解压。
 - 在线搜索需要用户自己的 API Key 和账号配额。
 - 桌面 Chrome/Edge 与 Firefox Android 为受支持目标；Kiwi 等 Chromium 分支可加载 Chrome 构建，但手机上没有标签页音频自动校准。
@@ -169,7 +173,7 @@ npm test
 npm run demo
 ```
 
-- 测试：`node --test`，当前 **134** 项。
+- 测试：`node --test`，当前 **138** 项。
 - Firefox 构建：`npm run build:firefox`，`web-ext lint` 0 errors / 0 warnings。
 - 演示站：`http://localhost:8787/demo/`（`npm run demo` 后打开）。
 
