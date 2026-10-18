@@ -12,6 +12,7 @@
       require('./srt-parser.js'),
       require('./vtt-parser.js'),
       require('./ass-parser.js'),
+      require('./ass-text.js'),
       require('../alignment/offset-model.js')
     );
   } else {
@@ -20,6 +21,7 @@
       root.SmartSubtitle.subtitles.SrtParser,
       root.SmartSubtitle.subtitles.VttParser,
       root.SmartSubtitle.subtitles.AssParser,
+      root.SmartSubtitle.subtitles.AssText,
       root.SmartSubtitle.alignment.OffsetModel
     );
   }
@@ -28,6 +30,7 @@
   SrtParser,
   VttParser,
   AssParser,
+  AssText,
   OffsetModel
 ) {
   'use strict';
@@ -61,6 +64,36 @@
       return base;
     }
     return (base ? base + ' ' : '') + 'line:' + linePercent + '%';
+  }
+
+  // WebVTT cue text is parsed as markup, so plain dialogue needs escaping and
+  // blank lines have to collapse (a blank line would end the cue block).
+  function plainCueText(segments) {
+    if (!Array.isArray(segments)) return '';
+    const text = segments
+      .map(function (segment) {
+        return segment && typeof segment.text === 'string' ? segment.text : '';
+      })
+      .join('');
+    return text
+      .split('\n')
+      .map(function (line) {
+        return line.trim();
+      })
+      .filter(function (line) {
+        return line !== '';
+      })
+      .join('\n')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function alignFor(assAlignment) {
+    const horizontal = (assAlignment - 1) % 3;
+    if (horizontal === 0) return 'left';
+    if (horizontal === 2) return 'right';
+    return 'center';
   }
 
   function detectFormat(fileName, text) {
@@ -102,6 +135,70 @@
 
     get approximateDurationMs() {
       return this.lastEndMs;
+    }
+
+    /**
+     * Generate a WebVTT payload that renders ASS/SSA dialogue as plain native
+     * cues. The DOM overlay cannot draw over a fullscreened `<video>` element,
+     * so this fallback keeps text visible there at the cost of ASS layout.
+     *
+     * Vertical position and alignment are preserved as cue settings; colors,
+     * fonts, \pos and drawings are not. Non-ASS documents delegate to toVtt.
+     *
+     * @param {number} [offsetMs]
+     * @param {{linePercent?:number}} [options]
+     */
+    toFallbackVtt(offsetMs, options) {
+      if (this.format !== 'ass' && this.format !== 'ssa') {
+        return this.toVtt(offsetMs, options);
+      }
+      const offset =
+        offsetMs === undefined || offsetMs === null ? 0 : offsetMs;
+      const linePercent = options && options.linePercent;
+      const shift = OffsetModel.shiftCues(this.cues, offset);
+      if (shift.cues.length === 0) {
+        throw new SubtitleError(
+          'OFFSET_DROPS_ALL',
+          '该偏移会把所有字幕移出视频时间轴，请减小偏移量。'
+        );
+      }
+
+      const styles = this.assStyles || {};
+      const cues = [];
+      const lineManaged = [];
+
+      for (const cue of shift.cues) {
+        const style = cue.styleData || styles[cue.style] || styles.Default;
+        const parsed = AssText.parse(cue.text, style, styles);
+        const text = plainCueText(parsed.segments);
+        if (!text) continue;
+        const alignment = Math.round(parsed.alignment || (style && style.alignment) || 2);
+        const settings = [
+          'align:' + alignFor(alignment),
+          withLinePosition('', linePercent)
+        ].filter(Boolean);
+        cues.push({
+          id: cue.id != null ? cue.id : null,
+          startMs: cue.startMs,
+          endMs: cue.endMs,
+          text,
+          settings: settings.join(' ')
+        });
+        lineManaged.push(true);
+      }
+
+      if (cues.length === 0) {
+        throw new SubtitleError(
+          'ASS_NO_PLAIN_TEXT',
+          '该 ASS 文件中没有可显示的对白文字。'
+        );
+      }
+
+      return {
+        vtt: VttParser.serialize(cues, {}),
+        shift,
+        lineManaged
+      };
     }
 
     /**

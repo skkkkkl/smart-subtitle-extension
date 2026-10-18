@@ -99,6 +99,10 @@
       this.assTrackListener = null;
       this.hiddenSiteCaptions = [];
       this.captionPickHandler = null;
+      // True while ASS dialogue is shown through a plain native <track> because
+      // a fullscreened <video> leaves no DOM layer for the overlay.
+      this.assFallbackActive = false;
+      this.fsTimer = null;
 
       this.settingsStore = new SettingsStore();
       this.settings = SettingsModel.createDefaultSettings();
@@ -116,6 +120,7 @@
 
       this._onPageHide = this._onPageHide.bind(this);
       this._onRuntimeMessage = this._onRuntimeMessage.bind(this);
+      this._onFullscreenChange = this._onFullscreenChange.bind(this);
     }
 
     start() {
@@ -262,6 +267,11 @@
         root.chrome.runtime.onMessage.addListener(this._onRuntimeMessage);
       }
       root.addEventListener('pagehide', this._onPageHide);
+      document.addEventListener('fullscreenchange', this._onFullscreenChange);
+      document.addEventListener(
+        'webkitfullscreenchange',
+        this._onFullscreenChange
+      );
     }
 
     async initializeSettings() {
@@ -942,6 +952,9 @@
         return false;
       }
       if (this.isAssDocument()) {
+        if (this.isAssOverlayBlocked()) {
+          return this.renderAssNativeFallback(reason);
+        }
         return this.renderAssSubtitle(reason);
       }
 
@@ -1008,8 +1021,136 @@
       );
     }
 
+    /*
+     * A fullscreened <video>/<iframe> only renders its own subtree, so a DOM
+     * overlay parented to the document is invisible there. Mobile players
+     * usually fullscreen the video element itself, which is why this shows up
+     * on phones while desktop players fullscreen a container that can host it.
+     */
+    isAssOverlayBlocked() {
+      if (!this.selectedVideo) return false;
+      const fullscreen =
+        document.fullscreenElement || document.webkitFullscreenElement || null;
+      if (!fullscreen) return false;
+      if (fullscreen === document.documentElement || fullscreen === document.body) {
+        return false;
+      }
+      if (
+        fullscreen === this.selectedVideo ||
+        fullscreen.tagName === 'VIDEO' ||
+        fullscreen.tagName === 'IFRAME'
+      ) {
+        return true;
+      }
+      return !fullscreen.contains(this.selectedVideo);
+    }
+
+    /*
+     * Fullscreen-safe ASS rendering: the same dialogue as native cues, so text
+     * stays visible. ASS layout, colours and \pos are lost until the user leaves
+     * fullscreen, where renderAssSubtitle takes over again.
+     */
+    async renderAssNativeFallback(reason) {
+      this.clearError();
+      this.assFallbackActive = true;
+      // Keep the overlay object alive (only disabled) so leaving fullscreen can
+      // restore the styled rendering without rebuilding everything.
+      if (
+        !this.trackController ||
+        this.trackController.video !== this.selectedVideo
+      ) {
+        if (this.trackController) {
+          this.trackController.destroy();
+          this.trackController = null;
+        }
+        this.createTrackController();
+      }
+      if (this.assOverlay) {
+        this.assOverlay.setEnabled(false);
+      }
+      this.mutePageTracks();
+
+      const token = ++this.renderToken;
+      let generated;
+      try {
+        generated = this.subtitleDoc.toFallbackVtt(this.offsetMs, {
+          linePercent: this.appearance.position
+        });
+      } catch (error) {
+        this.showError(error, null);
+        this.view.setStatus('全屏下无法显示该 ASS 字幕', 'error');
+        return false;
+      }
+      this.lastShift = generated.shift;
+      this.view.setStatus(reason || '正在切换全屏字幕…', 'busy');
+
+      try {
+        const result = await this.trackController.show(generated.vtt, {
+          label: '本地字幕（全屏简略）',
+          enabled: this.enabled,
+          lineManaged: generated.lineManaged
+        });
+        if (token !== this.renderToken || !this.started) return false;
+        this.trackController.setLinePosition(this.appearance.position);
+        this.cueStyle.attach(this.selectedVideo);
+        this.view.setOffset(this.offsetMs, this.offsetHistory.length > 0);
+        this.view.setEnabled(this.enabled);
+        this.view.setStatus(
+          this.enabled
+            ? '全屏中：ASS 字幕以纯文本显示（退出全屏恢复样式）。共 ' +
+                result.cueCount +
+                ' 条。'
+            : 'ASS 字幕已加载，显示已关闭。',
+          this.enabled ? 'warn' : 'idle'
+        );
+        return true;
+      } catch (error) {
+        if (error && error.code === 'TRACK_ABORTED') return false;
+        if (token !== this.renderToken || !this.started) return false;
+        this.showError(error, () => this.renderSubtitle('正在重试加载字幕…'));
+        this.view.setStatus('全屏字幕显示失败', 'error');
+        return false;
+      }
+    }
+
+    _onFullscreenChange() {
+      if (!this.started) return;
+      if (this.fsTimer) clearTimeout(this.fsTimer);
+      // The player may re-parent or rebuild the video right after the event.
+      this.fsTimer = setTimeout(() => {
+        this.fsTimer = null;
+        this.applyFullscreenState();
+      }, 150);
+    }
+
+    applyFullscreenState() {
+      if (!this.started || !this.subtitleDoc) return;
+      if (this.isAssDocument()) {
+        const blocked = this.isAssOverlayBlocked();
+        if (blocked !== this.assFallbackActive) {
+          void this.renderSubtitle(
+            blocked ? '正在切换全屏字幕…' : '正在恢复 ASS 字幕样式…'
+          );
+        }
+        return;
+      }
+
+      // Native tracks survive a video-element fullscreen, but players that
+      // rebuild the element during the transition drop the <track> with it.
+      if (!this.selectedVideo || !this.selectedVideo.isConnected) {
+        if (this.detector) this.detector.refresh(true);
+        return;
+      }
+      if (!this.trackController || !this.trackController.isActive) {
+        void this.renderSubtitle('正在恢复全屏字幕…');
+        return;
+      }
+      this.cueStyle.attach(this.selectedVideo);
+    }
+
     renderAssSubtitle(reason) {
       this.renderToken += 1;
+      this.assFallbackActive = false;
       this.clearError();
       if (this.trackController) {
         this.trackController.destroy();
@@ -1020,7 +1161,10 @@
       if (!this.assOverlay || this.assOverlay.video !== this.selectedVideo) {
         this.detachAssOverlay();
         this.assOverlay = new AssOverlay(this.selectedVideo, {
-          appearance: this.appearance
+          appearance: this.appearance,
+          onBlockedChange: () => {
+            if (this.started) this.applyFullscreenState();
+          }
         });
       }
       let shift;
@@ -1852,6 +1996,7 @@
 
     detachTrackController() {
       this.renderToken += 1;
+      this.assFallbackActive = false;
       this.cueStyle.detach();
       this.detachAssOverlay();
       if (this.trackController) {
@@ -1924,11 +2069,46 @@
     }
 
     showPanel() {
+      this._leaveBlockingFullscreen();
       if (this.view) this.view.show();
     }
 
     togglePanel() {
+      this._leaveBlockingFullscreen();
       if (this.view) this.view.toggle();
+    }
+
+    /*
+     * A fullscreened <video>/<iframe> (the usual mobile fullscreen) renders only
+     * its own subtree, so the panel injected outside it cannot be seen. Opening
+     * the panel then leaves fullscreen first, otherwise the click looks broken.
+     */
+    _leaveBlockingFullscreen() {
+      const fullscreen =
+        document.fullscreenElement || document.webkitFullscreenElement || null;
+      if (!fullscreen) return false;
+      if (
+        fullscreen === document.documentElement ||
+        fullscreen === document.body ||
+        fullscreen.tagName === 'VIDEO' ||
+        fullscreen.tagName === 'IFRAME' ||
+        (this.selectedVideo && !fullscreen.contains(this.selectedVideo))
+      ) {
+        const exit =
+          document.exitFullscreen || document.webkitExitFullscreen || null;
+        if (exit) {
+          try {
+            const result = exit.call(document);
+            if (result && typeof result.catch === 'function') {
+              result.catch(function () {});
+            }
+            return true;
+          } catch (error) {
+            return false;
+          }
+        }
+      }
+      return false;
     }
 
     _onRuntimeMessage(message, sender, sendResponse) {
@@ -1970,6 +2150,15 @@
         }
       }
       root.removeEventListener('pagehide', this._onPageHide);
+      document.removeEventListener('fullscreenchange', this._onFullscreenChange);
+      document.removeEventListener(
+        'webkitfullscreenchange',
+        this._onFullscreenChange
+      );
+      if (this.fsTimer) {
+        clearTimeout(this.fsTimer);
+        this.fsTimer = null;
+      }
       if (this.settingsUnsubscribe) {
         this.settingsUnsubscribe();
         this.settingsUnsubscribe = null;

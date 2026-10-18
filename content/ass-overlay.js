@@ -75,6 +75,14 @@
       this.layer = null;
       this.frame = null;
       this.lastKey = '';
+      // True while a fullscreen layer cannot host the overlay (a fullscreened
+      // <video>/<iframe> renders its own subtree only). The owner then falls
+      // back to native cues instead of silently drawing into an invisible layer.
+      this.blocked = false;
+      this.onBlockedChange =
+        typeof this.options.onBlockedChange === 'function'
+          ? this.options.onBlockedChange
+          : null;
       this.appearance = this.options.appearance || null;
       this._tick = this._tick.bind(this);
       this._onFullscreenChange = this._onFullscreenChange.bind(this);
@@ -116,15 +124,33 @@
       const fullscreen =
         document.fullscreenElement || document.webkitFullscreenElement || null;
       let target = document.documentElement;
-      if (
-        fullscreen &&
-        fullscreen !== this.video &&
-        fullscreen.contains(this.video)
-      ) {
-        target = fullscreen;
+      let blocked = false;
+      if (fullscreen) {
+        if (fullscreen === document.documentElement || fullscreen === document.body) {
+          target = fullscreen;
+        } else if (
+          fullscreen === this.video ||
+          fullscreen.tagName === 'VIDEO' ||
+          fullscreen.tagName === 'IFRAME'
+        ) {
+          // Nothing can be painted over a fullscreened replaced element.
+          blocked = true;
+        } else if (fullscreen.contains(this.video)) {
+          target = fullscreen;
+        } else {
+          // Some other element owns the screen; the video is not visible.
+          blocked = true;
+        }
       }
-      if (this.host.parentNode !== target) target.appendChild(this.host);
+      if (!blocked && this.host.parentNode !== target) {
+        target.appendChild(this.host);
+      }
       this.lastKey = '';
+      if (blocked !== this.blocked) {
+        this.blocked = blocked;
+        this._applyVisibility();
+        if (this.onBlockedChange) this.onBlockedChange(blocked);
+      }
     }
 
     _onFullscreenChange() {
@@ -182,6 +208,7 @@
     get isActive() {
       return Boolean(
         this.enabled &&
+          !this.blocked &&
           this.doc &&
           this.video &&
           this.video.isConnected &&
@@ -195,7 +222,6 @@
       const show = this.isActive;
       this.host.style.display = show ? 'block' : 'none';
     }
-
     _activeCues(timeMs) {
       if (!this.doc) return [];
       return this.doc.cues
@@ -220,6 +246,7 @@
     _renderFrame() {
       if (!this.host || !this.video) return;
       this._syncHostParent();
+      if (this.blocked) return;
       if (!this.enabled || !this.doc || !this.video.isConnected) {
         this._applyVisibility();
         return;

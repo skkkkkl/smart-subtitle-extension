@@ -1418,7 +1418,7 @@
         </div>
 
         <footer>
-          <span>v0.14.0 · SRT / VTT / ASS</span>
+          <span>v0.14.1 · SRT / VTT / ASS</span>
           <span>在线搜索可选 · 自动分析</span>
         </footer>
       </div>
@@ -1577,6 +1577,10 @@
 
       root.addEventListener('resize', this._onViewportResize, { passive: true });
       document.addEventListener('fullscreenchange', this._onFullscreenChange);
+      document.addEventListener(
+        'webkitfullscreenchange',
+        this._onFullscreenChange
+      );
       this._mounted = true;
       this.setTab('subtitle');
     }
@@ -1602,7 +1606,10 @@
 
     _appendHost() {
       if (!this.host) return;
-      const fullscreen = document.fullscreenElement;
+      const fullscreen =
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        null;
       let target = document.documentElement;
       if (
         fullscreen &&
@@ -2709,6 +2716,10 @@
       if (!this._mounted) return;
       root.removeEventListener('resize', this._onViewportResize);
       document.removeEventListener('fullscreenchange', this._onFullscreenChange);
+      document.removeEventListener(
+        'webkitfullscreenchange',
+        this._onFullscreenChange
+      );
       root.removeEventListener('pointermove', this._onDragMove);
       root.removeEventListener('pointerup', this._onDragEnd);
       root.removeEventListener('pointercancel', this._onDragEnd);
