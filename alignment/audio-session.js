@@ -239,7 +239,11 @@
       const atBoundary =
         result.atBoundary ||
         Math.abs(result.offsetMs) >= maxOffset - boundaryMarginMs;
-      if (result.margin < minPeakMargin) {
+      // The nearest 250ms candidate is not an independent alternative peak.
+      // Use the score gap to the next distinct offset to detect true ambiguity.
+      const distinctMargin =
+        result.distinctMargin == null ? result.margin : result.distinctMargin;
+      if (distinctMargin < minPeakMargin) {
         rejected.push(Object.assign(windowTiming(window), {
           index: window.index,
           startMs: window.startMs,
@@ -260,7 +264,7 @@
           searchBoundaryHit: atBoundary,
           code: 'AMBIGUOUS_PEAK',
           rejectReason: 'AMBIGUOUS_PEAK',
-          message: '第一/第二候选峰分差小于 ' + minPeakMargin,
+          message: '最佳峰与独立候选峰分差小于 ' + minPeakMargin,
           candidates: result.candidates || []
         }));
         continue;

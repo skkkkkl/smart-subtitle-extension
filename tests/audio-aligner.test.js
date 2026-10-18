@@ -44,6 +44,23 @@ test('detects a one-second delayed audio envelope', () => {
   );
   assert.equal(result.ok, true);
   assert.equal(result.offsetMs, 1000);
+  assert.ok(result.distinctMargin >= 0.05);
+});
+
+test('overlapping and unsorted cues keep the same estimate', () => {
+  const samples = makeSamples([[1000, 3000], [5000, 7000]]);
+  const baseline = estimateAudioOffset(samples, cues);
+  const overlapping = estimateAudioOffset(samples, [
+    { startMs: 4500, endMs: 6000 },
+    { startMs: 500, endMs: 2000 },
+    { startMs: 0, endMs: 2000 },
+    { startMs: 4000, endMs: 5000 },
+    { startMs: 4000, endMs: 6000 }
+  ]);
+
+  assert.equal(overlapping.ok, true);
+  assert.equal(overlapping.offsetMs, baseline.offsetMs);
+  assert.equal(overlapping.score, baseline.score);
 });
 
 test('detects a negative/early subtitle offset', () => {

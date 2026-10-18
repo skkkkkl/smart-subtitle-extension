@@ -74,6 +74,7 @@ test('multi-window session recovers a positive target offset', () => {
   assert.ok(result.diagnostics.global != null);
   assert.ok(result.diagnostics.windows[0].margin != null);
   assert.ok(result.diagnostics.windows[0].secondDistinctPeakOffsetMs != null);
+  assert.ok(result.diagnostics.windows[0].distinctMargin >= 0.03);
   assert.ok(result.diagnostics.windows[0].activeRatio != null);
 });
 

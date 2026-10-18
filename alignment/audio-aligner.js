@@ -40,15 +40,43 @@
     });
   }
 
-  function activeMask(samples, cues, offsetMs) {
-    return samples.map(function (sample) {
-      const subtitleTime = sample.mediaMs - offsetMs;
-      return cues.some(function (cue) {
-        return subtitleTime >= cue.startMs && subtitleTime <= cue.endMs;
-      })
-        ? 1
-        : 0;
+  function mergeCueIntervals(cues) {
+    const sorted = cues.slice().sort(function (a, b) {
+      return a.startMs - b.startMs || a.endMs - b.endMs;
     });
+    const merged = [];
+    for (const cue of sorted) {
+      const previous = merged[merged.length - 1];
+      if (previous && cue.startMs <= previous.endMs) {
+        previous.endMs = Math.max(previous.endMs, cue.endMs);
+      } else {
+        merged.push({ startMs: cue.startMs, endMs: cue.endMs });
+      }
+    }
+    return merged;
+  }
+
+  function activeMask(samples, intervals, offsetMs) {
+    const mask = [];
+    let intervalIndex = 0;
+    for (const sample of samples) {
+      const subtitleTime = sample.mediaMs - offsetMs;
+      while (
+        intervalIndex < intervals.length &&
+        intervals[intervalIndex].endMs < subtitleTime
+      ) {
+        intervalIndex += 1;
+      }
+      const interval = intervals[intervalIndex];
+      mask.push(
+        interval &&
+          interval.startMs <= subtitleTime &&
+          subtitleTime <= interval.endMs
+          ? 1
+          : 0
+      );
+    }
+    return mask;
   }
 
   function selectDistinctPeaks(candidates, best, separationMs) {
@@ -152,9 +180,12 @@
       options.maxOffsetMs > 0
         ? Math.min(options.maxOffsetMs, MAX_OFFSET_MS)
         : MAX_OFFSET_MS;
+    // Merge overlapping cues once. Each offset scan can then walk the sorted
+    // samples and intervals linearly instead of testing every cue per sample.
+    const cueIntervals = mergeCueIntervals(cueList);
     const candidates = [];
     for (let offset = -maxOffset; offset <= maxOffset; offset += STEP_MS) {
-      const mask = activeMask(list, cueList, offset);
+      const mask = activeMask(list, cueIntervals, offset);
       const score = pearson(normalized, mask);
       candidates.push({ offsetMs: offset, score });
     }
@@ -170,7 +201,10 @@
       options && options.distinctPeakSeparationMs
     );
     const secondDistinct = distinctPeaks[1] || null;
-    if (!best || best.score < 0.2 || margin < 0.02) {
+    const distinctMargin = secondDistinct
+      ? best.score - secondDistinct.score
+      : best.score;
+    if (!best || best.score < 0.2 || distinctMargin < 0.02) {
       return {
         ok: false,
         code: 'LOW_CORRELATION',
@@ -183,9 +217,7 @@
         secondDistinctPeakScore: secondDistinct
           ? Number(secondDistinct.score.toFixed(3))
           : null,
-        distinctMargin: secondDistinct
-          ? Number((best.score - secondDistinct.score).toFixed(3))
-          : null,
+        distinctMargin: Number(distinctMargin.toFixed(3)),
         candidates: candidates.slice(0, 8).map(function (candidate) {
           return {
             offsetMs: candidate.offsetMs,
@@ -195,7 +227,7 @@
       };
     }
     const confidence =
-      best.score >= 0.4 && margin >= 0.05 ? 'medium' : 'low';
+      best.score >= 0.4 && distinctMargin >= 0.05 ? 'medium' : 'low';
     const warnings = [];
     if (confidence === 'low') {
       warnings.push('音频相关性较弱，请手动确认。');
@@ -218,9 +250,7 @@
       secondDistinctPeakScore: secondDistinct
         ? Number(secondDistinct.score.toFixed(3))
         : null,
-      distinctMargin: secondDistinct
-        ? Number((best.score - secondDistinct.score).toFixed(3))
-        : null,
+      distinctMargin: Number(distinctMargin.toFixed(3)),
       atBoundary,
       candidates: candidates.slice(0, 8).map(function (candidate) {
         return {
