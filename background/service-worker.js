@@ -71,6 +71,7 @@ const CONTENT_FILES = [
   'subtitles/ass-parser.js',
   'alignment/offset-model.js',
   'alignment/offset-estimator.js',
+  'alignment/anchor-sync.js',
   'alignment/audio-aligner.js',
   'alignment/audio-features.js',
   'alignment/audio-session.js',

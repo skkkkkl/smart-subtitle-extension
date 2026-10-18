@@ -384,6 +384,101 @@
         font-size: 9px;
         cursor: pointer;
       }
+      .anchor-sync {
+        margin-top: 10px;
+        padding: 9px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: rgba(255,255,255,.02);
+      }
+      .anchor-sync-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .anchor-sync-head strong { color: #dbe5e8; font-size: 10.5px; }
+      .anchor-sync-head span { color: #77848e; font-size: 9px; }
+      .anchor-search {
+        display: flex;
+        gap: 6px;
+        margin-top: 8px;
+      }
+      .anchor-search input {
+        flex: 1;
+        min-width: 0;
+        height: 29px;
+        padding: 0 8px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: rgba(0,0,0,.22);
+        color: #e6eef0;
+        font-size: 10px;
+        outline: none;
+      }
+      .anchor-search input:focus { border-color: var(--accent); }
+      .anchor-search button,
+      .anchor-apply {
+        height: 29px;
+        padding: 0 9px;
+        border: 1px solid var(--line-strong);
+        border-radius: 6px;
+        background: var(--bg-raised);
+        color: #cbd7da;
+        font-size: 9.5px;
+        cursor: pointer;
+      }
+      .anchor-search button:hover,
+      .anchor-apply:hover:not(:disabled) { background: #29313d; }
+      .anchor-results {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        max-height: 154px;
+        margin-top: 7px;
+        overflow: auto;
+      }
+      .anchor-result {
+        display: flex;
+        align-items: flex-start;
+        gap: 7px;
+        width: 100%;
+        padding: 6px 7px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: rgba(0,0,0,.14);
+        color: #c6d3d6;
+        text-align: left;
+        font-size: 9.5px;
+        line-height: 1.4;
+        cursor: pointer;
+      }
+      .anchor-result:hover { background: #29313d; }
+      .anchor-result time {
+        flex: 0 0 auto;
+        color: var(--accent);
+        font: 9px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
+      }
+      .anchor-result span {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .anchor-selected {
+        margin: 7px 0 0;
+        padding: 6px 7px;
+        border-left: 2px solid var(--accent);
+        background: rgba(72, 228, 194, .06);
+        color: #b9c7cb;
+        font-size: 9.5px;
+        line-height: 1.45;
+      }
+      .anchor-apply { width: 100%; margin-top: 7px; }
+      .anchor-apply:disabled { opacity: .45; cursor: default; }
+      .anchor-status { margin: 6px 0 0; color: #77848e; font-size: 9px; line-height: 1.4; }
+      .anchor-status.ok { color: var(--accent); }
+      .anchor-status.warn { color: #e7c57a; }
       .auto-estimate-note {
         margin: 7px 0 0;
         color: #77848e;
@@ -992,6 +1087,21 @@
               <button type="button" data-action="copy-diagnostics">复制诊断</button>
             </details>
           </div>
+          <div class="anchor-sync">
+            <div class="anchor-sync-head">
+              <strong>台词锚点</strong>
+              <span>文本定位 · 手动确认</span>
+            </div>
+            <p class="auto-estimate-note">播放到目标台词并暂停，输入其中几个字，选中后用当前视频时间计算偏移。适用于跨域、DRM 或音频不可用的页面。</p>
+            <div class="anchor-search">
+              <input data-role="anchor-query" type="text" maxlength="80" placeholder="输入你听到的台词片段" aria-label="台词片段">
+              <button type="button" data-action="search-anchor">查找</button>
+            </div>
+            <div class="anchor-results" data-role="anchor-results"></div>
+            <p class="anchor-selected is-hidden" data-role="anchor-selected"></p>
+            <button class="anchor-apply" data-action="apply-anchor" type="button" data-role="anchor-apply" disabled>以当前时间对齐</button>
+            <p class="anchor-status" data-role="anchor-status"></p>
+          </div>
         </section>
 
         <details class="section appearance-details" data-role="appearance-details">
@@ -1148,7 +1258,7 @@
         </div>
 
         <footer>
-          <span>v0.9.11 · SRT / VTT / ASS</span>
+          <span>v0.10.0 · SRT / VTT / ASS</span>
           <span>在线搜索可选 · 自动分析</span>
         </footer>
       </div>
@@ -1384,6 +1494,23 @@
           break;
         case 'copy-diagnostics':
           this._copyDiagnostics();
+          break;
+        case 'search-anchor': {
+          const input = this._q('anchor-query');
+          if (this.callbacks.onSearchAnchor) {
+            this.callbacks.onSearchAnchor(input ? input.value : '');
+          }
+          break;
+        }
+        case 'select-anchor': {
+          const cueIndex = Number(target.getAttribute('data-cue-index'));
+          if (Number.isInteger(cueIndex) && this.callbacks.onSelectAnchor) {
+            this.callbacks.onSelectAnchor(cueIndex);
+          }
+          break;
+        }
+        case 'apply-anchor':
+          if (this.callbacks.onApplyAnchor) this.callbacks.onApplyAnchor();
           break;
         case 'reset-appearance':
           if (this.callbacks.onResetAppearance) {
@@ -1943,6 +2070,85 @@
         warning.textContent = '';
         warning.classList.add('is-hidden');
       }
+    }
+
+    setAnchorResults(results, message) {
+      const list = this._q('anchor-results');
+      const selected = this._q('anchor-selected');
+      const apply = this._q('anchor-apply');
+      if (!list) return;
+      list.replaceChildren();
+      if (selected) {
+        selected.textContent = '';
+        selected.classList.add('is-hidden');
+      }
+      if (apply) apply.disabled = true;
+      if (!results || !results.length) {
+        this.setAnchorStatus(message || '没有匹配的台词，试试更短的片段。', 'warn');
+        return;
+      }
+      for (const result of results) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'anchor-result';
+        button.setAttribute('data-action', 'select-anchor');
+        button.setAttribute('data-cue-index', String(result.cueIndex));
+        const time = document.createElement('time');
+        time.textContent = Timing.formatClock(result.startMs);
+        const text = document.createElement('span');
+        text.textContent = String(result.text || '').replace(/\s+/g, ' ').trim();
+        button.append(time, text);
+        list.append(button);
+      }
+      this.setAnchorStatus(
+        message || '找到 ' + results.length + ' 条，先选中正确的一句。',
+        ''
+      );
+    }
+
+    setAnchorSelected(result, preview, videoTimeMs) {
+      const selected = this._q('anchor-selected');
+      const apply = this._q('anchor-apply');
+      if (!selected || !apply || !result) return;
+      let text =
+        Timing.formatClock(result.startMs) +
+        '  ' +
+        String(result.text || '').replace(/\s+/g, ' ').trim();
+      if (preview && preview.ok) {
+        text +=
+          '  · 当前 ' +
+          Timing.formatClock(videoTimeMs) +
+          ' → 建议 ' +
+          OffsetModel.formatOffset(preview.offsetMs);
+      }
+      selected.textContent = text;
+      selected.classList.remove('is-hidden');
+      apply.disabled = !(preview && preview.ok);
+      if (preview && preview.ok) {
+        this.setAnchorStatus('确认无误后点击「以当前时间对齐」。', 'ok');
+      } else {
+        this.setAnchorStatus('请先选择视频并暂停在对应台词。', 'warn');
+      }
+    }
+
+    setAnchorStatus(text, tone) {
+      const node = this._q('anchor-status');
+      if (!node) return;
+      node.textContent = text || '';
+      node.className = 'anchor-status' + (tone ? ' ' + tone : '');
+    }
+
+    clearAnchor() {
+      const list = this._q('anchor-results');
+      const selected = this._q('anchor-selected');
+      const apply = this._q('anchor-apply');
+      if (list) list.replaceChildren();
+      if (selected) {
+        selected.textContent = '';
+        selected.classList.add('is-hidden');
+      }
+      if (apply) apply.disabled = true;
+      this.setAnchorStatus('', '');
     }
 
     setOffset(offsetMs, canUndo) {

@@ -26,8 +26,10 @@
   const FileDecoder = NS.subtitles.FileDecoder;
   const ErrorApi = NS.subtitles.SubtitleError;
   const SubtitleError = ErrorApi.SubtitleError;
+  const Timing = NS.subtitles.Timing;
   const OffsetModel = NS.alignment.OffsetModel;
   const OffsetEstimator = NS.alignment.OffsetEstimator;
+  const AnchorSync = NS.alignment.AnchorSync;
   const AudioCalibrator = NS.content.AudioCalibrator.AudioCalibrator;
   const AudioAligner = NS.alignment.AudioAligner;
   const AudioSession = NS.alignment.AudioSession;
@@ -88,6 +90,8 @@
       this.warnings = [];
       this.lastShift = null;
       this.autoSuggestion = null;
+      this.anchorResults = [];
+      this.anchorSelected = null;
       this.audioCalibrator = null;
       this.audioCalibratorBusy = false;
 
@@ -146,6 +150,15 @@
         },
         onApplyEstimate: () => {
           this.applyAutoEstimate();
+        },
+        onSearchAnchor: (query) => {
+          this.searchAnchor(query);
+        },
+        onSelectAnchor: (cueIndex) => {
+          this.selectAnchor(cueIndex);
+        },
+        onApplyAnchor: () => {
+          this.applyAnchor();
         },
         onProbeAudio: () => {
           void this.probeAudio();
@@ -1235,6 +1248,69 @@
         return this.movieMetadata.durationMs;
       }
       return null;
+    }
+
+    searchAnchor(query) {
+      if (!this.subtitleDoc) {
+        this.view.setAnchorStatus('请先加载字幕，再使用台词锚点。', 'warn');
+        return;
+      }
+      const results = AnchorSync.searchCues(this.subtitleDoc.cues, query);
+      this.anchorResults = results;
+      this.anchorSelected = null;
+      if (!results.length) {
+        this.view.setAnchorResults([], '没有匹配的台词，试试更短的片段。');
+        return;
+      }
+      this.view.setAnchorResults(results);
+      if (results.length === 1) {
+        this.selectAnchor(results[0].cueIndex);
+      }
+    }
+
+    selectAnchor(cueIndex) {
+      const result = this.anchorResults.find(function (item) {
+        return item.cueIndex === cueIndex;
+      });
+      if (!result) {
+        this.view.setAnchorStatus('找不到这条台词，请重新查找。', 'warn');
+        return;
+      }
+      if (!this.selectedVideo) {
+        this.view.setAnchorStatus('请先选择视频，再对齐台词。', 'warn');
+        return;
+      }
+      const videoTimeMs = this.selectedVideo.currentTime * 1000;
+      const preview = AnchorSync.offsetForAnchor(videoTimeMs, result);
+      this.anchorSelected = { result, preview };
+      this.view.setAnchorSelected(result, preview, videoTimeMs);
+    }
+
+    applyAnchor() {
+      if (!this.anchorSelected || !this.anchorSelected.result) {
+        this.view.setAnchorStatus('先查找并选中一条台词。', 'warn');
+        return;
+      }
+      if (!this.selectedVideo) {
+        this.view.setAnchorStatus('请先选择视频。', 'warn');
+        return;
+      }
+      const result = this.anchorSelected.result;
+      const videoTimeMs = this.selectedVideo.currentTime * 1000;
+      const preview = AnchorSync.offsetForAnchor(videoTimeMs, result);
+      if (!preview.ok) {
+        this.view.setAnchorStatus(preview.message || '锚点时间无效。', 'warn');
+        return;
+      }
+      this.view.setAnchorStatus(
+        '已按 ' +
+          Timing.formatClock(videoTimeMs) +
+          ' 对齐台词，偏移 ' +
+          OffsetModel.formatOffset(preview.offsetMs) +
+          '。',
+        'ok'
+      );
+      this.applyOffset(preview.offsetMs, { recordHistory: true });
     }
 
     estimateOffset() {
