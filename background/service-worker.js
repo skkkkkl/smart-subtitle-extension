@@ -72,6 +72,7 @@ const CONTENT_FILES = [
   'alignment/offset-model.js',
   'alignment/offset-estimator.js',
   'alignment/anchor-sync.js',
+  'alignment/first-line.js',
   'alignment/audio-aligner.js',
   'alignment/audio-features.js',
   'alignment/audio-session.js',

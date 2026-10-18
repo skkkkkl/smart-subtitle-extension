@@ -479,6 +479,33 @@
       .anchor-status { margin: 6px 0 0; color: #77848e; font-size: 9px; line-height: 1.4; }
       .anchor-status.ok { color: var(--accent); }
       .anchor-status.warn { color: #e7c57a; }
+      .first-line-sync {
+        margin-top: 10px;
+        padding: 9px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: rgba(255,255,255,.02);
+      }
+      .first-line-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 8px;
+      }
+      .first-line-actions button {
+        height: 28px;
+        padding: 0 8px;
+        border: 1px solid var(--line-strong);
+        border-radius: 6px;
+        background: var(--bg-raised);
+        color: #cbd7da;
+        font-size: 9.5px;
+        cursor: pointer;
+      }
+      .first-line-actions button:hover { background: #29313d; }
+      .first-line-status { margin: 6px 0 0; color: #77848e; font-size: 9px; line-height: 1.4; }
+      .first-line-status.ok { color: var(--accent); }
+      .first-line-status.warn { color: #e7c57a; }
       .auto-estimate-note {
         margin: 7px 0 0;
         color: #77848e;
@@ -1102,6 +1129,18 @@
             <button class="anchor-apply" data-action="apply-anchor" type="button" data-role="anchor-apply" disabled>以当前时间对齐</button>
             <p class="anchor-status" data-role="anchor-status"></p>
           </div>
+          <div class="first-line-sync">
+            <div class="anchor-sync-head">
+              <strong>首句对齐</strong>
+              <span>无需理解台词 · 自动/手动</span>
+            </div>
+            <p class="auto-estimate-note">从片头播放。自动模式会捕获约 30 秒标签页音频，检测第一段持续声音；片头音乐可能误检，建议确认后应用。</p>
+            <div class="first-line-actions">
+              <button type="button" data-action="auto-first-line">自动检测首句 30s</button>
+              <button type="button" data-action="manual-first-line">手动标记首句</button>
+            </div>
+            <p class="first-line-status" data-role="first-line-status"></p>
+          </div>
         </section>
 
         <details class="section appearance-details" data-role="appearance-details">
@@ -1258,7 +1297,7 @@
         </div>
 
         <footer>
-          <span>v0.10.0 · SRT / VTT / ASS</span>
+          <span>v0.11.0 · SRT / VTT / ASS</span>
           <span>在线搜索可选 · 自动分析</span>
         </footer>
       </div>
@@ -1511,6 +1550,12 @@
         }
         case 'apply-anchor':
           if (this.callbacks.onApplyAnchor) this.callbacks.onApplyAnchor();
+          break;
+        case 'auto-first-line':
+          if (this.callbacks.onAutoFirstLine) this.callbacks.onAutoFirstLine();
+          break;
+        case 'manual-first-line':
+          if (this.callbacks.onManualFirstLine) this.callbacks.onManualFirstLine();
           break;
         case 'reset-appearance':
           if (this.callbacks.onResetAppearance) {
@@ -2070,6 +2115,13 @@
         warning.textContent = '';
         warning.classList.add('is-hidden');
       }
+    }
+
+    setFirstLineStatus(text, tone) {
+      const node = this._q('first-line-status');
+      if (!node) return;
+      node.textContent = text || '';
+      node.className = 'first-line-status' + (tone ? ' ' + tone : '');
     }
 
     setAnchorResults(results, message) {

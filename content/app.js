@@ -30,6 +30,7 @@
   const OffsetModel = NS.alignment.OffsetModel;
   const OffsetEstimator = NS.alignment.OffsetEstimator;
   const AnchorSync = NS.alignment.AnchorSync;
+  const FirstLine = NS.alignment.FirstLine;
   const AudioCalibrator = NS.content.AudioCalibrator.AudioCalibrator;
   const AudioAligner = NS.alignment.AudioAligner;
   const AudioSession = NS.alignment.AudioSession;
@@ -159,6 +160,12 @@
         },
         onApplyAnchor: () => {
           this.applyAnchor();
+        },
+        onAutoFirstLine: () => {
+          void this.autoFirstLine();
+        },
+        onManualFirstLine: () => {
+          this.manualFirstLine();
         },
         onProbeAudio: () => {
           void this.probeAudio();
@@ -1248,6 +1255,139 @@
         return this.movieMetadata.durationMs;
       }
       return null;
+    }
+
+    _firstCue() {
+      return this.subtitleDoc && this.subtitleDoc.cues.length
+        ? this.subtitleDoc.cues[0]
+        : null;
+    }
+
+    _showFirstLineSuggestion(onset, firstCue, warnings, note) {
+      const offset = FirstLine.offsetFromFirstLine(onset.onsetMs, firstCue.startMs);
+      if (!offset.ok) {
+        this.view.setFirstLineStatus(offset.message || '首句偏移无效。', 'warn');
+        return;
+      }
+      this.autoSuggestion = {
+        ok: true,
+        offsetMs: offset.offsetMs,
+        confidence: onset.confidence || 'low',
+        warnings: warnings || [],
+        reasons: [
+          note +
+            '：声音 ' +
+            Timing.formatClock(onset.onsetMs) +
+            '，首句 ' +
+            Timing.formatClock(firstCue.startMs) +
+            '。'
+        ]
+      };
+      this.view.setEstimate(this.autoSuggestion);
+      this.view.setFirstLineStatus(
+        '首句建议 ' +
+          OffsetModel.formatOffset(offset.offsetMs) +
+          '；确认后点「应用建议」。' +
+          (warnings && warnings.length ? ' ' + warnings[0] : ''),
+        onset.confidence === 'medium' ? 'ok' : 'warn'
+      );
+    }
+
+    async autoFirstLine() {
+      const firstCue = this._firstCue();
+      if (!firstCue) {
+        this.view.setFirstLineStatus('请先加载字幕。', 'warn');
+        return;
+      }
+      if (!this.selectedVideo) {
+        this.view.setFirstLineStatus('请先选择视频。', 'warn');
+        return;
+      }
+      if (this.selectedVideo.paused) {
+        this.view.setFirstLineStatus('请从片头开始播放。', 'warn');
+        return;
+      }
+      if (this.selectedVideo.currentTime > 2) {
+        this.view.setFirstLineStatus('请先把视频回到开头，再检测首句。', 'warn');
+        return;
+      }
+      if (firstCue.startMs > 30000) {
+        this.view.setFirstLineStatus('首句在 30 秒之后，请改用手动首句。', 'warn');
+        return;
+      }
+      const runtime = root.chrome && root.chrome.runtime;
+      if (!runtime || !runtime.sendMessage) {
+        this.view.setFirstLineStatus('当前不是扩展环境，无法捕获标签页音频。', 'warn');
+        return;
+      }
+      if (this.audioCalibratorBusy) return;
+      this.audioCalibratorBusy = true;
+      const durationMs = 30000;
+      const startMediaMs = this.selectedVideo.currentTime * 1000;
+      const startRate = this.selectedVideo.playbackRate;
+      this.view.setFirstLineStatus('正在捕获片头 30 秒音频，请保持播放…', '');
+      try {
+        const response = await runtime.sendMessage({
+          type: 'SMART_SUBTITLE_TAB_AUDIO_CALIBRATE',
+          durationMs,
+          startMediaMs
+        });
+        if (!response || response.ok !== true) {
+          this.view.setFirstLineStatus(
+            '首句检测失败：' +
+              (response && response.message ? response.message : '未知错误'),
+            'warn'
+          );
+          return;
+        }
+        const advanced = this.selectedVideo.currentTime * 1000 - startMediaMs;
+        if (
+          this.selectedVideo.paused ||
+          this.selectedVideo.playbackRate !== startRate ||
+          Math.abs(advanced - durationMs) > 4000
+        ) {
+          this.view.setFirstLineStatus(
+            '采样期间发生暂停/拖动/倍速变化，请重新检测。',
+            'warn'
+          );
+          return;
+        }
+        const onset = FirstLine.detectFirstOnset(response.samples);
+        if (!onset.ok) {
+          this.view.setFirstLineStatus(onset.message || '没有检测到首句。', 'warn');
+          return;
+        }
+        this._showFirstLineSuggestion(
+          onset,
+          firstCue,
+          onset.warnings,
+          '自动首句'
+        );
+      } finally {
+        this.audioCalibratorBusy = false;
+      }
+    }
+
+    manualFirstLine() {
+      const firstCue = this._firstCue();
+      if (!firstCue) {
+        this.view.setFirstLineStatus('请先加载字幕。', 'warn');
+        return;
+      }
+      if (!this.selectedVideo) {
+        this.view.setFirstLineStatus('请先选择视频。', 'warn');
+        return;
+      }
+      const onset = {
+        onsetMs: this.selectedVideo.currentTime * 1000,
+        confidence: 'low',
+        warnings: ['手动标记会有约 0.2–0.5 秒反应延迟，可微调。']
+      };
+      this._showFirstLineSuggestion(onset, firstCue, onset.warnings, '手动首句');
+      this.view.setFirstLineStatus(
+        '已按当前时间计算首句偏移；请用毫秒按钮修正点击延迟。',
+        'warn'
+      );
     }
 
     searchAnchor(query) {
